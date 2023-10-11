@@ -1,2 +1,4 @@
-bld/
-build/
+bld/*
+!bld/pipd_autogen/
+
+
