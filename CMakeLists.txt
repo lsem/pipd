@@ -19,8 +19,6 @@ set(PROJECT_SOURCES
         mainwindow.cpp
         mainwindow.h
         mainwindow.ui
-	canvas.hpp
-	canvas.cpp
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
