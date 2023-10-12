@@ -19,6 +19,10 @@ set(PROJECT_SOURCES
         mainwindow.cpp
         mainwindow.h
         mainwindow.ui
+	canvas_widget.hpp
+	canvas_widget.cpp
+	toolbox.hpp
+	toolbox.cpp
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)

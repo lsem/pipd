@@ -4,14 +4,14 @@
 #include <QMainWindow>
 #include <memory>
 
-class Renderer;
-class Model;
-
 QT_BEGIN_NAMESPACE
 namespace Ui {
 class MainWindow;
 }
 QT_END_NAMESPACE
+
+class CanvasWidget;
+class ToolBox;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -20,21 +20,10 @@ class MainWindow : public QMainWindow {
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
-  protected:
-    void paintEvent(QPaintEvent *event) override;
-    void mouseMoveEvent(QMouseEvent *event) override;
-    void mousePressEvent(QMouseEvent *event) override;
-    void mouseReleaseEvent(QMouseEvent *event) override;
-    void moveEvent(QMoveEvent *event) override;
-    void wheelEvent(QWheelEvent *event) override;
-
   private:
     std::unique_ptr<Ui::MainWindow> ui;
-    std::unique_ptr<Renderer> m_renderer;
-    std::unique_ptr<Model> m_model;
-
-public: // TODO: fixme!
-    struct StateData;
-    std::unique_ptr<StateData> m_state_data;
+    CanvasWidget* m_canvas_widget{};
+    ToolBox *m_toolbox{};
+    
 };
 #endif // MAINWINDOW_H
