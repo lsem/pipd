@@ -1,8 +1,8 @@
 #include "canvas_widget.hpp"
 
-#include <QPainter>
-#include <QPaintEvent>
 #include <QDebug>
+#include <QPaintEvent>
+#include <QPainter>
 
 #include <vector>
 
@@ -30,8 +30,7 @@ class Renderer {
         painter->fillRect(event->rect(), brush);
     }
 
-    void render_currently_drawing(QPainter *painter,
-                                  CanvasWidget::StateData &state_data) {
+    void render_currently_drawing(QPainter *painter, CanvasWidget::StateData &state_data) {
         const auto &current_shape = state_data.current_shape;
         // render handles
         qDebug() << "current shape size: " << current_shape.size();
@@ -58,8 +57,7 @@ class Renderer {
         }
     }
 
-    void render(QPaintEvent *event, QPainter *painter,
-                CanvasWidget::StateData &state_data) {
+    void render(QPaintEvent *event, QPainter *painter, CanvasWidget::StateData &state_data) {
         render_background(painter, event);
         render_currently_drawing(painter, state_data);
     }
@@ -67,11 +65,12 @@ class Renderer {
 
 CanvasWidget::CanvasWidget(QWidget *parent)
     // Qt::FramelessWindowHint | Qt::WindowSystemMenuHint)
-    : QWidget(parent), m_renderer(std::make_unique<Renderer>()),
-      m_model(std::make_unique<Model>()),
+    : QWidget(parent), m_renderer(std::make_unique<Renderer>()), m_model(std::make_unique<Model>()),
       m_state_data(std::make_unique<StateData>()) {}
 
 CanvasWidget::~CanvasWidget() = default;
+
+void CanvasWidget::select_tool(Tool tool) { qDebug() << "tool selected: " << tool; }
 
 void CanvasWidget::paintEvent(QPaintEvent *event) /*override*/ {
     QPainter painter;
@@ -86,11 +85,9 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
     // so we clicked somewhere..
     qDebug() << "clicked at " << event->x() << ", " << event->y();
 
-    if (m_state_data->state == CanvasState::idle ||
-        m_state_data->state == CanvasState::drawing) {
+    if (m_state_data->state == CanvasState::idle || m_state_data->state == CanvasState::drawing) {
         m_state_data->state = CanvasState::drawing;
-        m_state_data->current_shape.emplace_back(
-            Point{.x = event->x(), .y = event->y()});
+        m_state_data->current_shape.emplace_back(Point{.x = event->x(), .y = event->y()});
         this->update();
     }
 

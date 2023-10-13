@@ -1,5 +1,6 @@
 #pragma once
 
+#include "types.hpp"
 #include <QWidget>
 #include <memory>
 
@@ -12,6 +13,9 @@ class CanvasWidget : public QWidget {
   public:
     CanvasWidget(QWidget *parent = nullptr);
     ~CanvasWidget();
+
+  public slots:
+    void select_tool(Tool tool);
 
   protected:
     void paintEvent(QPaintEvent *event) override;
@@ -26,7 +30,7 @@ class CanvasWidget : public QWidget {
     std::unique_ptr<Renderer> m_renderer;
     std::unique_ptr<Model> m_model;
 
-public: // TODO: fixme!
+  public: // TODO: fixme!
     struct StateData;
     std::unique_ptr<StateData> m_state_data;
 };

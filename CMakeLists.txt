@@ -23,6 +23,9 @@ set(PROJECT_SOURCES
 	canvas_widget.cpp
 	toolbox.hpp
 	toolbox.cpp
+	types.hpp
+	types.cpp
+	
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
