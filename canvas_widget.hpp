@@ -4,9 +4,6 @@
 #include <QWidget>
 #include <memory>
 
-class Renderer;
-class Model;
-
 class CanvasWidget : public QWidget {
     Q_OBJECT
 
@@ -27,10 +24,14 @@ class CanvasWidget : public QWidget {
     void wheelEvent(QWheelEvent *event) override;
 
   private:
-    std::unique_ptr<Renderer> m_renderer;
-    std::unique_ptr<Model> m_model;
+    void render_background(QPainter *painter, QPaintEvent *);
+    void render_handles(QPainter *painter, QPaintEvent *);
+    void render_lines(QPainter *painter, QPaintEvent *);
 
-  public: // TODO: fixme!
     struct StateData;
+    StateData &data() const;
+    StateData &data();
+
+  private:
     std::unique_ptr<StateData> m_state_data;
 };

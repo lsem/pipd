@@ -6,11 +6,6 @@
 
 #include <vector>
 
-struct Point {
-    int x;
-    int y;
-};
-
 enum class CanvasState { idle, drawing };
 
 struct CanvasWidget::StateData {
@@ -18,55 +13,10 @@ struct CanvasWidget::StateData {
     std::vector<Point> current_shape;
 };
 
-// Represents a model of what we are editing/displaying.
-struct Model {};
-
-// Basically, our renderer does not own a model but draws it. Can have its own
-// state, e.g. some cache or something.
-class Renderer {
-  public:
-    void render_background(QPainter *painter, QPaintEvent *event) {
-        QBrush brush{QColor{227, 227, 227}};
-        painter->fillRect(event->rect(), brush);
-    }
-
-    void render_currently_drawing(QPainter *painter, CanvasWidget::StateData &state_data) {
-        const auto &current_shape = state_data.current_shape;
-        // render handles
-        qDebug() << "current shape size: " << current_shape.size();
-        for (auto &p : current_shape) {
-            const int size = 20;
-            const auto half_size = size / 2;
-            QRect point_rect{p.x - half_size, p.y - half_size, size, size};
-            QBrush point_brush{QColor{255, 0, 0}};
-            qDebug() << "point.rect: " << point_rect;
-            painter->fillRect(point_rect, point_brush);
-        }
-
-        // render lines
-        if (current_shape.size() > 1) {
-            QPen pen;
-            pen.setColor(QColor{0, 0, 0});
-            pen.setWidth(4);
-
-            for (size_t i = 1; i < current_shape.size(); ++i) {
-                auto &p1 = current_shape[i - 1];
-                auto &p2 = current_shape[i];
-                painter->drawLine(p1.x, p1.y, p2.x, p2.y);
-            }
-        }
-    }
-
-    void render(QPaintEvent *event, QPainter *painter, CanvasWidget::StateData &state_data) {
-        render_background(painter, event);
-        render_currently_drawing(painter, state_data);
-    }
-};
-
+CanvasWidget::StateData &CanvasWidget::data() const { return *m_state_data; }
+CanvasWidget::StateData &CanvasWidget::data() { return *m_state_data; }
 CanvasWidget::CanvasWidget(QWidget *parent)
-    // Qt::FramelessWindowHint | Qt::WindowSystemMenuHint)
-    : QWidget(parent), m_renderer(std::make_unique<Renderer>()), m_model(std::make_unique<Model>()),
-      m_state_data(std::make_unique<StateData>()) {}
+    : QWidget(parent), m_state_data(std::make_unique<StateData>()) {}
 
 CanvasWidget::~CanvasWidget() = default;
 
@@ -75,7 +25,9 @@ void CanvasWidget::select_tool(Tool tool) { qDebug() << "tool selected: " << too
 void CanvasWidget::paintEvent(QPaintEvent *event) /*override*/ {
     QPainter painter;
     painter.begin(this);
-    m_renderer->render(event, &painter, *m_state_data);
+    render_background(&painter, event);
+    render_lines(&painter, event);
+    render_handles(&painter, event);
     painter.end();
 }
 
@@ -100,3 +52,32 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
 void CanvasWidget::mouseReleaseEvent(QMouseEvent *event) {}
 void CanvasWidget::moveEvent(QMoveEvent *event) {}
 void CanvasWidget::wheelEvent(QWheelEvent *event) {}
+
+void CanvasWidget::render_background(QPainter *painter, QPaintEvent *event) {
+    QBrush brush{QColor{227, 227, 227}};
+    painter->fillRect(event->rect(), brush);
+}
+void CanvasWidget::render_handles(QPainter *painter, QPaintEvent *) {
+    for (auto &p : data().current_shape) {
+        const int size = 20;
+        const auto half_size = size / 2;
+        QRect point_rect{p.x - half_size, p.y - half_size, size, size};
+        QBrush point_brush{QColor{255, 0, 0}};
+        qDebug() << "point.rect: " << point_rect;
+        painter->fillRect(point_rect, point_brush);
+    }
+}
+void CanvasWidget::render_lines(QPainter *painter, QPaintEvent *) {
+    auto &current_shape = data().current_shape;
+    if (current_shape.size() > 1) {
+        QPen pen;
+        pen.setColor(QColor{0, 0, 0});
+        pen.setWidth(4);
+
+        for (size_t i = 1; i < data().current_shape.size(); ++i) {
+            auto &p1 = data().current_shape[i - 1];
+            auto &p2 = current_shape[i];
+            painter->drawLine(p1.x, p1.y, p2.x, p2.y);
+        }
+    }
+}

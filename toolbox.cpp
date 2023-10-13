@@ -19,7 +19,6 @@ ToolBox::ToolBox(QWidget *parent) : QFrame(parent) {
         connect(tool, &QToolButton::toggled, this, [tool, tool_id, this](bool checked) {
             if (checked) {
                 tool->setChecked(true);
-
                 for (auto t : m_tools) {
                     if (t != tool && t->isChecked()) {
                         t->setChecked(false);
@@ -40,6 +39,5 @@ ToolBox::ToolBox(QWidget *parent) : QFrame(parent) {
     m_hand_tool->setChecked(true);
 
     layout->addStretch();
-
     setLayout(layout);
 }

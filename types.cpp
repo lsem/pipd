@@ -14,3 +14,8 @@ QDebug &operator<<(QDebug &os, Tool t) {
     }
     return os;
 }
+
+QDebug &operator<<(QDebug &os, Point p) {
+    os << p.x << ", " << p.y;
+    return os;
+}
