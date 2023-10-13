@@ -4,6 +4,8 @@
 #include <QWidget>
 #include <memory>
 
+enum class CanvasState { idle, drawing };
+
 class CanvasWidget : public QWidget {
     Q_OBJECT
 
@@ -28,10 +30,7 @@ class CanvasWidget : public QWidget {
     void render_handles(QPainter *painter, QPaintEvent *);
     void render_lines(QPainter *painter, QPaintEvent *);
 
-    struct StateData;
-    StateData &data() const;
-    StateData &data();
-
   private:
-    std::unique_ptr<StateData> m_state_data;
+    CanvasState m_state = CanvasState::idle;
+    std::vector<Point> m_current_shape;
 };
