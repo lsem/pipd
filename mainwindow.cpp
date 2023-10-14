@@ -15,11 +15,12 @@
 
 MainWindow::MainWindow(QWidget *parent)
     // Qt::FramelessWindowHint | Qt::WindowSystemMenuHint)
-    : QMainWindow(parent), ui(new Ui::MainWindow), m_canvas_widget(new CanvasWidget{this}) {
+    : QMainWindow(parent), ui(new Ui::MainWindow), m_canvas_widget(new CanvasWidget{this}),
+      m_toolbox(new ToolBox{this}) {
     ui->setupUi(this);
     this->setWindowTitle(QString::fromUtf8("pipd"));
 
-    m_toolbox = new ToolBox{this};
+    m_canvas_widget->select_tool(m_toolbox->get_selected_tool());
 
     connect(m_toolbox, &ToolBox::selected_tool_changed, m_canvas_widget,
             &CanvasWidget::select_tool);

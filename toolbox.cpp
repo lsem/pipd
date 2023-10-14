@@ -13,6 +13,7 @@ ToolBox::ToolBox(QWidget *parent) : QFrame(parent) {
     auto add_tool = [this, layout](auto tool_name, auto tool_id) {
         auto tool = new QToolButton(this);
         tool->setCheckable(true);
+        tool->setChecked(false);
         tool->setText(tool_name);
         m_tools.emplace_back(tool);
         layout->addWidget(tool);
@@ -26,6 +27,7 @@ ToolBox::ToolBox(QWidget *parent) : QFrame(parent) {
                 }
                 if (m_selected_tool != tool_id) {
                     m_selected_tool = tool_id;
+                    qDebug() << "emit signal";
                     emit selected_tool_changed(m_selected_tool);
                 }
             }
