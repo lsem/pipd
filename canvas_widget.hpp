@@ -31,6 +31,12 @@ class CanvasWidget : public QWidget {
     void render_handles(QPainter *painter, QPaintEvent *);
     void render_lines(QPainter *painter, QPaintEvent *);
 
+    // World to View transformation
+    Point project(Point p);
+
+    // View to World transofrmation
+    Point unproject(Point p);
+
   private:
     CanvasState m_state = CanvasState::idle;
     std::vector<Point> m_current_shape;

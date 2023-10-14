@@ -47,6 +47,15 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent *event) {
     }
 }
 
+// what is origin in our scene?
+// It can be just 0. Then if we want to have coordinates in real world (GPS) we can fit this origin
+// to some coorinates and then find coorindates of all objects on the scene. Just in case. But, for
+// now we can assume that we have origin and all coordinates are translated in centimeters to this
+// origin. When we start drawing, position 0,0 corresponds to origin of World. So putting object 0.0
+// puts object translated to 0cm to the origin.
+// Then, when we zoom to 2x. 
+//
+
 void CanvasWidget::mousePressEvent(QMouseEvent *event) {
     qDebug() << "clicked at " << event->x() << ", " << event->y();
 
@@ -60,12 +69,6 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
             m_prev_y = event->y();
         }
     }
-
-    // if (m_state == CanvasState::idle || m_state == CanvasState::drawing) {
-    //     m_state = CanvasState::drawing;
-    //     m_current_shape.emplace_back(Point{.x = event->x(), .y = event->y()});
-    //     this->update();
-    // }
 }
 
 void CanvasWidget::mouseReleaseEvent(QMouseEvent *event) {
@@ -78,15 +81,25 @@ void CanvasWidget::mouseReleaseEvent(QMouseEvent *event) {
         }
     }
 }
+
 void CanvasWidget::wheelEvent(QWheelEvent *event) {
     // qDebug() << "pixelDelta.x: " << event->pixelDelta().x();
     // qDebug() << "pixelDelta.y: " << event->pixelDelta().y();
+    qDebug() << "angle_delta.x: " << event->angleDelta().x();
+    qDebug() << "angle_delta.y: " << event->angleDelta().y();
+
+    // Most mouse types work in increments of 15.0 degress but Qt returns eights of degree.
+    // We assume that 15 degrees will correspond to 0.1 scale so minimal increment of wheel results
+    // in + 0.1 or -0.1 zoom.
+
+    const auto delta_degress = event->angleDelta().y() / 8;
+    const auto delta_zoom = (delta_degress / 15.0) / 10.0;
 
     if (m_selected_tool == Tool::draw) {
         // ..
     } else if (m_selected_tool == Tool::hand) {
         if (m_hand_tool_state == HandToolState::idle) {
-            m_scale += (event->pixelDelta().y() / 120.0) / 10.0;
+            m_scale += delta_zoom;
             qDebug() << "m_zoom: " << m_scale;
             update();
         }
@@ -97,6 +110,7 @@ void CanvasWidget::render_background(QPainter *painter, QPaintEvent *event) {
     QBrush brush{QColor{227, 227, 227}};
     painter->fillRect(event->rect(), brush);
 }
+
 void CanvasWidget::render_handles(QPainter *painter, QPaintEvent *) {
     for (auto &p : m_current_shape) {
         const double size = 10 / m_scale;
@@ -108,6 +122,7 @@ void CanvasWidget::render_handles(QPainter *painter, QPaintEvent *) {
         painter->fillRect(point_rect, point_brush);
     }
 }
+
 void CanvasWidget::render_lines(QPainter *painter, QPaintEvent *) {
     if (m_current_shape.size() > 1) {
         QPen pen;
