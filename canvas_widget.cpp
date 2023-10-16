@@ -41,7 +41,10 @@ void CanvasWidget::select_tool(Tool tool) {
 
 void CanvasWidget::paintEvent(QPaintEvent *event) /*override*/ {
     QPainter painter;
+
     painter.begin(this);
+    painter.setRenderHint(QPainter::Antialiasing);
+
     render_background(&painter, event);
 
     painter.setTransform(get_transformation_matrix());
@@ -52,7 +55,7 @@ void CanvasWidget::paintEvent(QPaintEvent *event) /*override*/ {
 }
 
 void CanvasWidget::mouseMoveEvent(QMouseEvent *event) {
-    if (m_selected_tool == Tool::draw) {
+    if (m_selected_tool == Tool::draw_point) {
         // ..
     } else if (m_selected_tool == Tool::hand) {
         if (m_hand_tool_state == HandToolState::pressed) {
@@ -65,6 +68,8 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent *event) {
             m_translate_y -= dy;
 
             qDebug() << "translate: " << m_translate_x << ", " << m_translate_y;
+        } else {
+            assert(false && "what!");
         }
         update();
     }
@@ -88,7 +93,7 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
     auto mouse_screen = Point{x, y};
     auto mouse_world = screen_to_world(mouse_screen);
 
-    if (m_selected_tool == Tool::draw) {
+    if (m_selected_tool == Tool::draw_point) {
 
         qDebug() << "new point at: " << mouse_world;
 
@@ -96,6 +101,22 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
         m_points.emplace_back(mouse_world, random_id());
 
         update();
+
+    } else if (m_selected_tool == Tool::draw_line) {
+        if (m_draw_line_state == DrawLineState::point_a_placed) {
+            qDebug() << "point A was placed";
+            LineObj new_line;
+            new_line.id = random_id();
+            new_line.l.a = m_line_point_a;
+            new_line.l.b = mouse_world;
+            m_lines.emplace_back(new_line);
+            m_draw_line_state = DrawLineState::waiting_point_a;
+            update();
+        } else {
+            m_draw_line_state = DrawLineState::point_a_placed;
+            m_line_point_a = mouse_world;
+            qDebug() << "point A placed";
+        }
     } else if (m_selected_tool == Tool::hand) {
         // hand tool is for camera control
         if (m_hand_tool_state == HandToolState::idle) {
@@ -128,7 +149,7 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
 }
 
 void CanvasWidget::mouseReleaseEvent(QMouseEvent *event) {
-    if (m_selected_tool == Tool::draw) {
+    if (m_selected_tool == Tool::draw_point) {
         // ..
     } else if (m_selected_tool == Tool::hand) {
         // hand tool is for camera control.
@@ -156,18 +177,22 @@ void CanvasWidget::wheelEvent(QWheelEvent *event) {
     // const auto x = width()/2.0;
     // const auto y = height()/2.0;
 
-    if (m_selected_tool == Tool::draw) {
+    if (m_selected_tool == Tool::draw_point) {
         // ..
     } else if (m_selected_tool == Tool::hand) {
+        //	m_hand_tool_state = HandleToolState::
         if (m_hand_tool_state == HandToolState::idle) {
-            const auto mouse_in_world_before = screen_to_world({x, y});
+            if (!m_zoom_center_opt) {
+                m_zoom_center_opt = {x, y};
+            }
+            // const auto mouse_in_world_before = screen_to_world(*m_zoom_center_opt);
             m_scale += delta_zoom;
-            auto mouse_in_world_after = screen_to_world({x, y});
-            Point delta{mouse_in_world_after.x - mouse_in_world_before.x,
-                        mouse_in_world_after.y - mouse_in_world_before.y};
-            m_translate_x -= delta.x;
-            m_translate_y -= delta.y;
-            qDebug() << "mouse in world delta: " << delta;
+            // auto mouse_in_world_after = screen_to_world(*m_zoom_center_opt);
+            // Point delta{mouse_in_world_after.x - mouse_in_world_before.x,
+            //             mouse_in_world_after.y - mouse_in_world_before.y};
+            // m_translate_x -= delta.x;
+            // m_translate_y -= delta.y;
+            //            qDebug() << "mouse in world delta: " << delta;
             qDebug() << "m_zoom: " << m_scale;
             update();
         }
@@ -203,17 +228,13 @@ void CanvasWidget::render_handles(QPainter *painter, QPaintEvent *) {
 }
 
 void CanvasWidget::render_lines(QPainter *painter, QPaintEvent *) {
-    if (m_points.size() > 1) {
+    for (auto &[line, id] : m_lines) {
+        auto &[a, b] = line;
         QPen pen;
         pen.setColor(QColor{0, 0, 0});
-        pen.setWidthF(1.5 / m_scale);
+        pen.setWidthF(1.0 / m_scale);
         painter->setPen(pen);
-
-        for (size_t i = 1; i < m_points.size(); ++i) {
-            auto &p1 = m_points[i - 1];
-            auto &p2 = m_points[i];
-            painter->drawLine(p1.x, p1.y, p2.x, p2.y);
-        }
+        painter->drawLine(a.x, a.y, b.x, b.y);
     }
 }
 

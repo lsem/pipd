@@ -25,6 +25,8 @@ set(PROJECT_SOURCES
 	toolbox.cpp
 	types.hpp
 	types.cpp
+	layers_window.hpp
+	layers_window.cpp
 	
 )
 

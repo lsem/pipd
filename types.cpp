@@ -5,8 +5,11 @@ QDebug &operator<<(QDebug &os, Tool t) {
     case Tool::hand:
         os << "hand";
         break;
-    case Tool::draw:
-        os << "draw";
+    case Tool::draw_point:
+        os << "draw_point";
+        break;
+    case Tool::draw_line:
+        os << "draw_line";
         break;
     case Tool::select:
         os << "select";

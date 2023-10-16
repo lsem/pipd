@@ -3,10 +3,12 @@
 #include "types.hpp"
 #include <QWidget>
 #include <memory>
+#include <optional>
 
 enum class CanvasState { idle, drawing };
 
-enum class HandToolState { idle, pressed };
+enum class HandToolState { idle, pressed, zooming };
+enum class DrawLineState { waiting_point_a, point_a_placed };
 
 class CanvasWidget : public QWidget {
     Q_OBJECT
@@ -44,8 +46,8 @@ class CanvasWidget : public QWidget {
     bool is_object_selected(const PointObj &o);
     bool is_object_selected(const LineObj &o);
 
-
     QTransform get_transformation_matrix() const;
+
   private:
     CanvasState m_state = CanvasState::idle;
     // std::vector<Point> m_current_shape;
@@ -55,14 +57,17 @@ class CanvasWidget : public QWidget {
     int m_translate_y = 0;
     double m_scale = 1.0;
 
+    std::optional<Point> m_zoom_center_opt;
+
     HandToolState m_hand_tool_state = HandToolState::idle;
     int m_prev_x = 0;
     int m_prev_y = 0;
+
+    DrawLineState m_draw_line_state;
+    Point m_line_point_a{0,0};
 
     std::vector<PointObj> m_points;
     std::vector<LineObj> m_lines;
 
     std::vector<std::string> m_selected_objects;
-
-
 };

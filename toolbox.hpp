@@ -18,7 +18,8 @@ class ToolBox : public QFrame {
 
   private:
     QToolButton *m_hand_tool;
-    QToolButton *m_draw_tool;
+    QToolButton *m_draw_point_tool;
+    QToolButton *m_draw_line_tool;    
     QToolButton *m_select_tool;    
     Tool m_selected_tool = Tool::hand;
     std::vector<QToolButton *> m_tools;

@@ -2,8 +2,9 @@
 #include "./ui_mainwindow.h"
 
 #include "canvas_widget.hpp"
-
+#include "layers_window.hpp"
 #include "toolbox.hpp"
+
 #include <QDebug>
 #include <QHBoxLayout>
 #include <QMouseEvent>
@@ -16,7 +17,7 @@
 MainWindow::MainWindow(QWidget *parent)
     // Qt::FramelessWindowHint | Qt::WindowSystemMenuHint)
     : QMainWindow(parent), ui(new Ui::MainWindow), m_canvas_widget(new CanvasWidget{this}),
-      m_toolbox(new ToolBox{this}) {
+      m_toolbox(new ToolBox{this}), m_layers_window{new LayersWindow{this}} {
     ui->setupUi(this);
     this->setWindowTitle(QString::fromUtf8("pipd"));
 
@@ -25,9 +26,13 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_toolbox, &ToolBox::selected_tool_changed, m_canvas_widget,
             &CanvasWidget::select_tool);
 
+    auto control_and_tools_layout = new QVBoxLayout();
+    control_and_tools_layout->addWidget(m_toolbox);
+    control_and_tools_layout->addWidget(m_layers_window);
+
     auto *horizontal_layout = new QHBoxLayout(centralWidget());
     horizontal_layout->addWidget(m_canvas_widget);
-    horizontal_layout->addWidget(m_toolbox);
+    horizontal_layout->addLayout(control_and_tools_layout);
 }
 
 MainWindow::~MainWindow() = default;

@@ -12,6 +12,7 @@ QT_END_NAMESPACE
 
 class CanvasWidget;
 class ToolBox;
+class LayersWindow;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -22,8 +23,8 @@ class MainWindow : public QMainWindow {
 
   private:
     std::unique_ptr<Ui::MainWindow> ui;
-    CanvasWidget* m_canvas_widget{};
+    CanvasWidget *m_canvas_widget{};
     ToolBox *m_toolbox{};
-    
+    LayersWindow *m_layers_window{};
 };
 #endif // MAINWINDOW_H

@@ -2,15 +2,16 @@
 #include <QDebug>
 #include <string>
 
-enum class Tool { hand, select, draw };
+enum class Tool { hand, select, draw_point, draw_line };
 
 QDebug &operator<<(QDebug &os, Tool t);
 
 struct Point {
-    double x;
-    double y;
+    double x = 0.0;
+    double y = 0.0;
 
     Point(double x, double y) : x(x), y(y) {}
+    Point() = default;
 };
 
 QDebug &operator<<(QDebug &os, Point t);
