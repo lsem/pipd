@@ -32,7 +32,7 @@ class CanvasWidget : public QWidget {
     void render_lines(QPainter *painter, QPaintEvent *);
 
     Point world_to_screen(Point p);
-    Point screen_to_world(Point p);    
+    Point screen_to_world(Point p);
 
     void mark_object_selected(const PointObj &o);
     void mark_object_selected(const LineObj &o);
@@ -44,6 +44,8 @@ class CanvasWidget : public QWidget {
     bool is_object_selected(const PointObj &o);
     bool is_object_selected(const LineObj &o);
 
+
+    QTransform get_transformation_matrix() const;
   private:
     CanvasState m_state = CanvasState::idle;
     // std::vector<Point> m_current_shape;
@@ -61,4 +63,6 @@ class CanvasWidget : public QWidget {
     std::vector<LineObj> m_lines;
 
     std::vector<std::string> m_selected_objects;
+
+
 };

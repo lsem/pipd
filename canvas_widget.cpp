@@ -7,6 +7,9 @@
 #include <vector>
 
 namespace {
+QPointF to_qpointf(Point p) { return QPointF(p.x, p.y); }
+Point to_point(QPointF p) { return Point(p.x(), p.y()); }
+
 Rect select_bbox(Point p, double size) {
     return Rect{.x = p.x - size / 2, .y = p.y - size / 2, .width = size, .height = size};
 }
@@ -40,8 +43,8 @@ void CanvasWidget::paintEvent(QPaintEvent *event) /*override*/ {
     QPainter painter;
     painter.begin(this);
     render_background(&painter, event);
-    painter.scale(m_scale, m_scale);
-    painter.translate(m_translate_x, m_translate_y);
+
+    painter.setTransform(get_transformation_matrix());
 
     render_lines(&painter, event);
     render_handles(&painter, event);
@@ -58,8 +61,8 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent *event) {
             m_prev_x = event->x();
             m_prev_y = event->y();
 
-            m_translate_x += dx;
-            m_translate_y += dy;
+            m_translate_x -= dx;
+            m_translate_y -= dy;
 
             qDebug() << "translate: " << m_translate_x << ", " << m_translate_y;
         }
@@ -105,7 +108,7 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
         // line is independent thing to point.
         for (auto &p : m_points) {
             auto point_screen = world_to_screen(p);
-            if (in_rect(point_screen, select_bbox(point_screen, SELECT_TOOL_HIT_BBOX))) {
+            if (in_rect(mouse_screen, select_bbox(point_screen, SELECT_TOOL_HIT_BBOX))) {
                 if (!is_object_selected(p)) {
                     qDebug() << "hit into point!";
                     mark_object_selected(p);
@@ -148,11 +151,23 @@ void CanvasWidget::wheelEvent(QWheelEvent *event) {
     const auto delta_degress = event->angleDelta().y() / 8;
     const auto delta_zoom = (delta_degress / 15.0) / 10.0; // mapped to -1/+1 for mouse mouses
 
+    const auto x = event->position().x();
+    const auto y = event->position().y();
+    // const auto x = width()/2.0;
+    // const auto y = height()/2.0;
+
     if (m_selected_tool == Tool::draw) {
         // ..
     } else if (m_selected_tool == Tool::hand) {
         if (m_hand_tool_state == HandToolState::idle) {
+            const auto mouse_in_world_before = screen_to_world({x, y});
             m_scale += delta_zoom;
+            auto mouse_in_world_after = screen_to_world({x, y});
+            Point delta{mouse_in_world_after.x - mouse_in_world_before.x,
+                        mouse_in_world_after.y - mouse_in_world_before.y};
+            m_translate_x -= delta.x;
+            m_translate_y -= delta.y;
+            qDebug() << "mouse in world delta: " << delta;
             qDebug() << "m_zoom: " << m_scale;
             update();
         }
@@ -203,11 +218,11 @@ void CanvasWidget::render_lines(QPainter *painter, QPaintEvent *) {
 }
 
 Point CanvasWidget::world_to_screen(Point p) {
-    return Point{(p.x + m_translate_x) * m_scale, (p.y + m_translate_y) * m_scale};
+    return to_point(to_qpointf(p) * get_transformation_matrix());
 }
 
 Point CanvasWidget::screen_to_world(Point p) {
-    return Point{p.x / m_scale - m_translate_x, p.y / m_scale - m_translate_y};
+    return to_point(to_qpointf(p) * get_transformation_matrix().inverted());
 }
 
 void CanvasWidget::mark_object_selected(const PointObj &o) { select_object_by_id_impl(o.id); }
@@ -235,4 +250,12 @@ bool CanvasWidget::is_object_selected(const PointObj &o) {
 bool CanvasWidget::is_object_selected(const LineObj &o) {
     return std::find(m_selected_objects.begin(), m_selected_objects.end(), o.id) !=
            m_selected_objects.end();
+}
+
+QTransform CanvasWidget::get_transformation_matrix() const {
+    QTransform m;
+    m.translate(-m_translate_x, -m_translate_y);
+    m.scale(m_scale, m_scale);
+    //    m.translate(width() / 2.0, height() / 2.0);
+    return m;
 }
