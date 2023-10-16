@@ -1,0 +1,26 @@
+# On Canvas and Model
+We should rememeber that the role of canvas_widget is to edit the model.
+So whenever model changes we should signal about it.
+The model maintains drawing in different units: centimeters.
+what types of objects we are going to have:
+   1) just lines -- usually drawn on special underlying layer.
+   2) ducts -- in fact this is real model. Lines are not part of the model and we don't care.
+   But ducts is the thing.
+   3) wormhole -- an element going up or down to next or previous floor. In fact, it seemse
+   like we don't need wormhole directly and we actually don't care whether it is 90 degrees
+   left/right or up/down. While our App is not going to support 3d but in fact we can just
+   produce 3d. We can have 3d preview however as separate view for the model. In this view we
+   may have other layers displaued flat but ducts in 3d.
+ How we are going to draw this thing?
+   1) When we want to go up we just put special element (warmhole). When this is added, we
+   can this means that we created 90 direction change. What if we want to narrow down this
+   pipe?
+ We just select this "point/wormhole" and edit as any other pipe. The only difference is
+ that in Top View we see it as a point. The diameter can be displayed differently however.
+ We can also color code size  to see the difference between 120 and 130 (we can have a
+ gradient between two colors for  this purpose).
+ We cannot see height of duct this way.
+ Also, we can have special anchor that when we clicked on this wormhole right mouse button
+ and there will be go to other floor. So we go to another floor. Ideally there should be
+ nice animated
+ move in orthogpahic pojection to see corresponding palce on second floor.

@@ -40,8 +40,9 @@ void CanvasWidget::paintEvent(QPaintEvent *event) /*override*/ {
     QPainter painter;
     painter.begin(this);
     render_background(&painter, event);
-    painter.translate(m_translate_x, m_translate_y);
     painter.scale(m_scale, m_scale);
+    painter.translate(m_translate_x, m_translate_y);
+
     render_lines(&painter, event);
     render_handles(&painter, event);
     painter.end();
@@ -59,31 +60,39 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent *event) {
 
             m_translate_x += dx;
             m_translate_y += dy;
+
+            qDebug() << "translate: " << m_translate_x << ", " << m_translate_y;
         }
         update();
     }
 }
 
-// what is origin in our scene?
-// It can be just 0. Then if we want to have coordinates in real world (GPS) we can fit this origin
-// to some coorinates and then find coorindates of all objects on the scene. Just in case. But, for
-// now we can assume that we have origin and all coordinates are translated in centimeters to this
-// origin. When we start drawing, position 0,0 corresponds to origin of World. So putting object 0.0
-// puts object translated to 0cm to the origin.
-// Then, when we zoom to 2x.
-//
-// next taks will be layers:
-//   next major milestone will be ability to draw the floor on layer.
-//   BTW, what is floor? it seems like it is something like a scane, like a separate image.
-//   Theoretically, this floors can even be displayed on single UI side by side.
-//   Each floor may have mulitple layers.
-// Once we have floor, we can go to duct work and edit real world model.
+std::string random_id() {
+    std::string s;
+    for (int i = 0; i < 12; ++i) {
+        s += (rand() % 'Z' - 'A') + 'A';
+    }
+    return s;
+}
 
 void CanvasWidget::mousePressEvent(QMouseEvent *event) {
-    qDebug() << "clicked at " << event->x() << ", " << event->y();
+
+    double x = event->x();
+    double y = event->y();
+
+    qDebug() << "clicked at " << x << ", " << y;
+
+    auto mouse_screen = Point{x, y};
+    auto mouse_world = screen_to_world(mouse_screen);
 
     if (m_selected_tool == Tool::draw) {
+
+        qDebug() << "new point at: " << mouse_world;
+
         // draw tool is for drawing things
+        m_points.emplace_back(mouse_world, random_id());
+
+        update();
     } else if (m_selected_tool == Tool::hand) {
         // hand tool is for camera control
         if (m_hand_tool_state == HandToolState::idle) {
@@ -95,8 +104,8 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
         // we are going to test for hits into either points or lines.
         // line is independent thing to point.
         for (auto &p : m_points) {
-            auto unprojected_mouse_pos = unproject(Point{(double)event->x(), (double)event->y()});
-            if (in_rect(unprojected_mouse_pos, select_bbox(p, SELECT_TOOL_HIT_BBOX / m_scale))) {
+            auto point_screen = world_to_screen(p);
+            if (in_rect(point_screen, select_bbox(point_screen, SELECT_TOOL_HIT_BBOX))) {
                 if (!is_object_selected(p)) {
                     qDebug() << "hit into point!";
                     mark_object_selected(p);
@@ -137,7 +146,7 @@ void CanvasWidget::wheelEvent(QWheelEvent *event) {
     // in + 0.1 or -0.1 zoom.
 
     const auto delta_degress = event->angleDelta().y() / 8;
-    const auto delta_zoom = (delta_degress / 15.0) / 10.0;
+    const auto delta_zoom = (delta_degress / 15.0) / 10.0; // mapped to -1/+1 for mouse mouses
 
     if (m_selected_tool == Tool::draw) {
         // ..
@@ -193,15 +202,12 @@ void CanvasWidget::render_lines(QPainter *painter, QPaintEvent *) {
     }
 }
 
-// World to View transformation
-Point CanvasWidget::project(Point p) {
-    assert(false && "not implemented");
-    return p;
+Point CanvasWidget::world_to_screen(Point p) {
+    return Point{(p.x + m_translate_x) * m_scale, (p.y + m_translate_y) * m_scale};
 }
 
-// View to World transofrmation
-Point CanvasWidget::unproject(Point p) {
-    return Point{(p.x - m_translate_x) / m_scale, (p.y - m_translate_y) / m_scale};
+Point CanvasWidget::screen_to_world(Point p) {
+    return Point{p.x / m_scale - m_translate_x, p.y / m_scale - m_translate_y};
 }
 
 void CanvasWidget::mark_object_selected(const PointObj &o) { select_object_by_id_impl(o.id); }

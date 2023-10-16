@@ -31,11 +31,8 @@ class CanvasWidget : public QWidget {
     void render_handles(QPainter *painter, QPaintEvent *);
     void render_lines(QPainter *painter, QPaintEvent *);
 
-    // World to View transformation
-    Point project(Point p);
-
-    // View to World transofrmation
-    Point unproject(Point p);
+    Point world_to_screen(Point p);
+    Point screen_to_world(Point p);    
 
     void mark_object_selected(const PointObj &o);
     void mark_object_selected(const LineObj &o);
