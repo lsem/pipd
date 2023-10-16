@@ -37,6 +37,7 @@ ToolBox::ToolBox(QWidget *parent) : QFrame(parent) {
 
     m_hand_tool = add_tool("H", Tool::hand);
     m_draw_tool = add_tool("D", Tool::draw);
+    m_select_tool = add_tool("S", Tool::select);
 
     m_hand_tool->setChecked(true);
 

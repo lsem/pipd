@@ -37,9 +37,19 @@ class CanvasWidget : public QWidget {
     // View to World transofrmation
     Point unproject(Point p);
 
+    void mark_object_selected(const PointObj &o);
+    void mark_object_selected(const LineObj &o);
+    void unmark_object_selected(const PointObj &o);
+    void unmark_object_selected(const LineObj &o);
+    void select_object_by_id_impl(const std::string &id);
+    void deselect_object_by_id_impl(const std::string &id);
+
+    bool is_object_selected(const PointObj &o);
+    bool is_object_selected(const LineObj &o);
+
   private:
     CanvasState m_state = CanvasState::idle;
-    std::vector<Point> m_current_shape;
+    // std::vector<Point> m_current_shape;
     Tool m_selected_tool = Tool::hand;
 
     int m_translate_x = 0;
@@ -49,4 +59,9 @@ class CanvasWidget : public QWidget {
     HandToolState m_hand_tool_state = HandToolState::idle;
     int m_prev_x = 0;
     int m_prev_y = 0;
+
+    std::vector<PointObj> m_points;
+    std::vector<LineObj> m_lines;
+
+    std::vector<std::string> m_selected_objects;
 };

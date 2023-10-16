@@ -8,6 +8,9 @@ QDebug &operator<<(QDebug &os, Tool t) {
     case Tool::draw:
         os << "draw";
         break;
+    case Tool::select:
+        os << "select";
+        break;
     default:
         os << "<tool:unknown>";
         break;
