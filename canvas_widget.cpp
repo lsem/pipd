@@ -57,6 +57,13 @@ void CanvasWidget::paintEvent(QPaintEvent *event) /*override*/ {
 void CanvasWidget::mouseMoveEvent(QMouseEvent *event) {
     if (m_selected_tool == Tool::draw_point) {
         // ..
+    } else if (m_selected_tool == Tool::draw_line) {
+        if (m_draw_line_state == DrawLineState::point_a_placed) {
+            auto mouse_screen = Point{event->x(), event->y()};
+            auto mouse_world = screen_to_world(mouse_screen);
+            m_line_point_b = mouse_world;
+            update();
+        }
     } else if (m_selected_tool == Tool::hand) {
         if (m_hand_tool_state == HandToolState::pressed) {
             auto dx = event->x() - m_prev_x;
@@ -68,8 +75,6 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent *event) {
             m_translate_y -= dy;
 
             qDebug() << "translate: " << m_translate_x << ", " << m_translate_y;
-        } else {
-            assert(false && "what!");
         }
         update();
     }
@@ -111,11 +116,13 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
             new_line.l.b = mouse_world;
             m_lines.emplace_back(new_line);
             m_draw_line_state = DrawLineState::waiting_point_a;
+            setMouseTracking(false);
             update();
         } else {
             m_draw_line_state = DrawLineState::point_a_placed;
             m_line_point_a = mouse_world;
-            qDebug() << "point A placed";
+            setMouseTracking(true);
+            qDebug() << "LINE: point A placed";
         }
     } else if (m_selected_tool == Tool::hand) {
         // hand tool is for camera control
@@ -236,6 +243,18 @@ void CanvasWidget::render_lines(QPainter *painter, QPaintEvent *) {
         painter->setPen(pen);
         painter->drawLine(a.x, a.y, b.x, b.y);
     }
+
+    // TODO: move to separate renderer
+    if (m_selected_tool == Tool::draw_line) {
+        if (m_draw_line_state == DrawLineState::point_a_placed) {
+            QPen pen;
+            pen.setColor(QColor{100, 100, 100});
+            pen.setWidthF(0.8 / m_scale);
+            painter->setPen(pen);
+            painter->drawLine(m_line_point_a.x, m_line_point_a.y, m_line_point_b.x,
+                              m_line_point_b.y);
+        }
+    }
 }
 
 Point CanvasWidget::world_to_screen(Point p) {
@@ -280,3 +299,12 @@ QTransform CanvasWidget::get_transformation_matrix() const {
     //    m.translate(width() / 2.0, height() / 2.0);
     return m;
 }
+
+// NOW:
+//     selected line has two handles. we can move point of one line wherever we want.
+//     but even more nemeficial is to create a point.
+//     we can also move line itself which will translate the line accordingly.
+//    Once we have this basic functionality implemented, we can try to draw something non-trivial.
+//    For this we will need to be able to set widths.
+//    We will also need to be able to resize things according to specified size.
+//    We will also nened to remove things.

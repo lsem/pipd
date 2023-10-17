@@ -64,7 +64,8 @@ class CanvasWidget : public QWidget {
     int m_prev_y = 0;
 
     DrawLineState m_draw_line_state;
-    Point m_line_point_a{0,0};
+    Point m_line_point_a{0, 0};
+    Point m_line_point_b{0, 0};
 
     std::vector<PointObj> m_points;
     std::vector<LineObj> m_lines;
