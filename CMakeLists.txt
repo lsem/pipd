@@ -27,7 +27,8 @@ set(PROJECT_SOURCES
 	types.cpp
 	layers_window.hpp
 	layers_window.cpp
-	
+	v2.hpp
+	v2.cpp
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)

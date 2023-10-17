@@ -1,4 +1,5 @@
 #include "canvas_widget.hpp"
+#include "v2.hpp"
 
 #include <QDebug>
 #include <QPaintEvent>
@@ -59,7 +60,8 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent *event) {
         // ..
     } else if (m_selected_tool == Tool::draw_line) {
         if (m_draw_line_state == DrawLineState::point_a_placed) {
-            auto mouse_screen = Point{event->x(), event->y()};
+            auto mouse_screen =
+                Point{static_cast<double>(event->x()), static_cast<double>(event->y())};
             auto mouse_world = screen_to_world(mouse_screen);
             m_line_point_b = mouse_world;
             update();
@@ -234,6 +236,23 @@ void CanvasWidget::render_handles(QPainter *painter, QPaintEvent *) {
     }
 }
 
+namespace {
+std::array<QPointF, 4> line_bbox(Line l, double size) {
+    std::array<QPointF, 4> ret;
+
+    double SIZE = 20.0;
+
+    auto v = v2(l.a, l.b);
+    auto perp_v = normalized(v2(-v.y, v.x));
+    ret[0] = l.a + perp_v * size / 2;
+    ret[1] = l.a + perp_v * -size / 2;
+    ret[2] = l.b + perp_v * -size / 2;
+    ret[3] = l.b + perp_v * size / 2;
+
+    return ret;
+}
+} // namespace
+
 void CanvasWidget::render_lines(QPainter *painter, QPaintEvent *) {
     for (auto &[line, id] : m_lines) {
         auto &[a, b] = line;
@@ -242,6 +261,16 @@ void CanvasWidget::render_lines(QPainter *painter, QPaintEvent *) {
         pen.setWidthF(1.0 / m_scale);
         painter->setPen(pen);
         painter->drawLine(a.x, a.y, b.x, b.y);
+
+        QPen bbox_pen;
+        bbox_pen.setColor(QColor{100, 100, 100});
+        bbox_pen.setWidthF(0.7 / m_scale);
+        painter->setPen(bbox_pen);
+        auto [r1, r2, r3, r4] = line_bbox(line, 20.0 / m_scale);
+        painter->drawLine(r1, r2);
+        painter->drawLine(r2, r3);
+        painter->drawLine(r3, r4);
+        painter->drawLine(r4, r1);
     }
 
     // TODO: move to separate renderer
