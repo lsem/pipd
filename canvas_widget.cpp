@@ -8,8 +8,8 @@
 #include <vector>
 
 namespace {
-QPointF to_qpointf(Point p) { return QPointF(p.x, p.y); }
-Point to_point(QPointF p) { return Point(p.x(), p.y()); }
+// QPointF to_qpointf(Point p) { return QPointF(p.x, p.y); }
+// Point to_point(QPointF p) { return Point(p.x(), p.y()); }
 
 Rect select_bbox(Point p, double size) {
     return Rect{.x = p.x - size / 2, .y = p.y - size / 2, .width = size, .height = size};
@@ -322,13 +322,9 @@ void CanvasWidget::render_lines(QPainter *painter, QPaintEvent *) {
     }
 }
 
-Point CanvasWidget::world_to_screen(Point p) {
-    return to_point(to_qpointf(p) * get_transformation_matrix());
-}
+Point CanvasWidget::world_to_screen(Point p) { return p * get_transformation_matrix(); }
 
-Point CanvasWidget::screen_to_world(Point p) {
-    return to_point(to_qpointf(p) * get_transformation_matrix().inverted());
-}
+Point CanvasWidget::screen_to_world(Point p) { return p * get_transformation_matrix().inverted(); }
 
 Line CanvasWidget::world_to_screen(Line p) {
     return Line{.a = world_to_screen(p.a), .b = world_to_screen(p.b)};
