@@ -35,6 +35,8 @@ class CanvasWidget : public QWidget {
 
     Point world_to_screen(Point p);
     Point screen_to_world(Point p);
+    Line world_to_screen(Line p);
+    Line screen_to_world(Line p);
 
     void mark_object_selected(const PointObj &o);
     void mark_object_selected(const LineObj &o);

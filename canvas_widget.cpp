@@ -25,6 +25,48 @@ bool in_rect(Point p, Rect r) { return in_rect(p.x, p.y, r); }
 
 const double SELECT_TOOL_HIT_BBOX = 20.0;
 
+std::array<Point, 4> line_bbox(Line l, double size) {
+    std::array<Point, 4> ret;
+
+    auto v = v2(l.a, l.b);
+    auto perp_v = normalized(v2(-v.y, v.x));
+    ret[0] = l.a + perp_v * size / 2;
+    ret[1] = l.a + perp_v * -size / 2;
+    ret[2] = l.b + perp_v * -size / 2;
+    ret[3] = l.b + perp_v * size / 2;
+
+    return ret;
+}
+
+int wrap_index(size_t index, size_t n) { return ((index % n) + n) % n; }
+
+bool rect_point_hit_test(std::array<Point, 4> rect, Point p) {
+    // dot product of perpendicular to each side (P(AB)) and vector AP should be the same.
+
+    int prev_sign = 1;
+
+    for (size_t i = 1; i < 5; ++i) {
+        Point p1 = rect[wrap_index(i - 1, 4)];
+        Point p2 = rect[wrap_index(i, 4)];
+        v2 v{p1, p2};
+        v2 u{p1, p};
+        v2 pv = {-v.y, v.x};
+        double d = dot(pv, u);
+        int sign = d > 0 ? 1 : -1;
+
+        if (i > 1) {
+            if (sign != prev_sign) {
+                return false;
+            }
+        }
+        prev_sign = sign;
+        // qDebug() << "HITTEST: " << wrap_index(i - 1, 4) << ", " << wrap_index(i, 4)
+        //          << ": dot=" << d;
+    }
+
+    return true;
+}
+
 } // namespace
 
 CanvasWidget::CanvasWidget(QWidget *parent) : QWidget(parent) {
@@ -154,6 +196,17 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
             // we can select things. After things are selected they can be moved, we can display
             // properties of things.
         }
+
+        for (auto &line : m_lines) {
+            //            auto& [a, b] = l.l;
+            auto line_screen = world_to_screen(line.l);
+            auto bbox_rect_pts = line_bbox(line_screen, 20.0 / m_scale);
+
+            if (rect_point_hit_test(bbox_rect_pts, mouse_screen)) {
+                qDebug() << "hit into line " << line.id.c_str() << "!!!!!";
+            } else {
+            }
+        }
     }
 }
 
@@ -236,23 +289,6 @@ void CanvasWidget::render_handles(QPainter *painter, QPaintEvent *) {
     }
 }
 
-namespace {
-std::array<QPointF, 4> line_bbox(Line l, double size) {
-    std::array<QPointF, 4> ret;
-
-    double SIZE = 20.0;
-
-    auto v = v2(l.a, l.b);
-    auto perp_v = normalized(v2(-v.y, v.x));
-    ret[0] = l.a + perp_v * size / 2;
-    ret[1] = l.a + perp_v * -size / 2;
-    ret[2] = l.b + perp_v * -size / 2;
-    ret[3] = l.b + perp_v * size / 2;
-
-    return ret;
-}
-} // namespace
-
 void CanvasWidget::render_lines(QPainter *painter, QPaintEvent *) {
     for (auto &[line, id] : m_lines) {
         auto &[a, b] = line;
@@ -292,6 +328,13 @@ Point CanvasWidget::world_to_screen(Point p) {
 
 Point CanvasWidget::screen_to_world(Point p) {
     return to_point(to_qpointf(p) * get_transformation_matrix().inverted());
+}
+
+Line CanvasWidget::world_to_screen(Line p) {
+    return Line{.a = world_to_screen(p.a), .b = world_to_screen(p.b)};
+}
+Line CanvasWidget::screen_to_world(Line p) {
+    return Line{.a = screen_to_world(p.a), .b = screen_to_world(p.b)};
 }
 
 void CanvasWidget::mark_object_selected(const PointObj &o) { select_object_by_id_impl(o.id); }

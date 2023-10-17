@@ -1,5 +1,6 @@
 #pragma once
 #include <QDebug>
+#include <QPointF>
 #include <string>
 
 enum class Tool { hand, select, draw_point, draw_line };
@@ -11,7 +12,10 @@ struct Point {
     double y = 0.0;
 
     Point(double x, double y) : x(x), y(y) {}
+    Point(QPointF p) : x(p.x()), y(p.y()) {}
     Point() = default;
+
+    operator QPointF() const { return QPointF(x, y); }
 };
 
 QDebug &operator<<(QDebug &os, Point t);
