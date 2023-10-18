@@ -32,7 +32,7 @@ class CanvasWidget : public QWidget {
     void render_background(QPainter *painter, QPaintEvent *);
     void render_handles(QPainter *painter, QPaintEvent *);
     void render_lines(QPainter *painter, QPaintEvent *);
-    void render_debug_elements(QPainter* painter, QPaintEvent*);
+    void render_debug_elements(QPainter *painter, QPaintEvent *);
 
     Point world_to_screen(Point p);
     Point screen_to_world(Point p);
@@ -75,4 +75,5 @@ class CanvasWidget : public QWidget {
     std::vector<LineObj> m_lines;
 
     std::vector<std::string> m_selected_objects;
+    std::string m_hitting_line_id;
 };

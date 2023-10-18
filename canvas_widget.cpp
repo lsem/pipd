@@ -72,6 +72,13 @@ CanvasWidget::~CanvasWidget() = default;
 void CanvasWidget::select_tool(Tool tool) {
     qDebug() << "tool selected: " << tool;
     m_selected_tool = tool;
+
+    // By default only select tool has tracking on.
+    if (m_selected_tool == Tool::select) {
+        setMouseTracking(true);
+    } else {
+        setMouseTracking(false);
+    }
 }
 
 void CanvasWidget::paintEvent(QPaintEvent *event) /*override*/ {
@@ -92,13 +99,12 @@ void CanvasWidget::paintEvent(QPaintEvent *event) /*override*/ {
 }
 
 void CanvasWidget::mouseMoveEvent(QMouseEvent *event) {
+    auto mouse_screen = Point{static_cast<double>(event->x()), static_cast<double>(event->y())};
+    auto mouse_world = screen_to_world(mouse_screen);
     if (m_selected_tool == Tool::draw_point) {
         // ..
     } else if (m_selected_tool == Tool::draw_line) {
         if (m_draw_line_state == DrawLineState::point_a_placed) {
-            auto mouse_screen =
-                Point{static_cast<double>(event->x()), static_cast<double>(event->y())};
-            auto mouse_world = screen_to_world(mouse_screen);
             m_line_point_b = mouse_world;
             update();
         }
@@ -113,6 +119,15 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent *event) {
             m_translate_y -= dy;
 
             qDebug() << "translate: " << m_translate_x << ", " << m_translate_y;
+        }
+        update();
+    } else if (m_selected_tool == Tool::select) {
+        m_hitting_line_id = false;
+        for (auto &[line, id] : m_lines) {
+            auto p = math::closest_point_to_line(line.a, line.b, mouse_world);
+            if (len(v2(mouse_world, p)) < 10) {
+                m_hitting_line_id = id;
+            }
         }
         update();
     }
@@ -323,6 +338,14 @@ void CanvasWidget::render_debug_elements(QPainter *painter, QPaintEvent *) {
     for (auto p : m_projection_points) {
         draw_colored_point(painter, p, QColor(100, 100, 100));
     }
+
+    if (!m_hitting_line_id.empty()) {
+        auto it = std::find_if(m_lines.begin(), m_lines.end(),
+                               [&](auto &l) { return l.id == m_hitting_line_id; });
+        if (it != m_lines.end()) {
+            draw_colored_line(painter, it->l.a, it->l.b, QColor(255, 0, 0));
+        }
+    }
 }
 
 void CanvasWidget::render_lines(QPainter *painter, QPaintEvent *) {
@@ -388,10 +411,12 @@ bool CanvasWidget::is_object_selected(const LineObj &o) {
 
 QTransform CanvasWidget::get_transformation_matrix() const {
     QTransform m;
+    double cx = width() / 2;
+    double cy = height() / 2;
+    m.translate(cx, cy);
     m.scale(m_scale, m_scale);
+    m.translate(-cx, -cy);
     m.translate(-m_translate_x, -m_translate_y);
-
-    //    m.translate(width() / 2.0, height() / 2.0);
     return m;
 }
 
