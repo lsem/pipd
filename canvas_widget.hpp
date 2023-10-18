@@ -32,6 +32,7 @@ class CanvasWidget : public QWidget {
     void render_background(QPainter *painter, QPaintEvent *);
     void render_handles(QPainter *painter, QPaintEvent *);
     void render_lines(QPainter *painter, QPaintEvent *);
+    void render_debug_elements(QPainter* painter, QPaintEvent*);
 
     Point world_to_screen(Point p);
     Point screen_to_world(Point p);
@@ -68,6 +69,7 @@ class CanvasWidget : public QWidget {
     DrawLineState m_draw_line_state;
     Point m_line_point_a{0, 0};
     Point m_line_point_b{0, 0};
+    std::vector<Point> m_projection_points;
 
     std::vector<PointObj> m_points;
     std::vector<LineObj> m_lines;

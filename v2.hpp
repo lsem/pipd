@@ -41,12 +41,17 @@ inline v2 operator/(v2 v, double s) { return v2{v[0] / s, v[1] / s}; }
 inline v2 operator+(v2 a, v2 b) { return v2{a[0] + b[0], a[1] + b[1]}; }
 inline v2 operator-(v2 a, v2 b) { return v2{a[0] - b[0], a[1] - b[1]}; }
 inline double dot(v2 a, v2 b) { return a[0] * b[0] + a[1] * b[1]; }
+inline double operator*(v2 a, v2 b) { return dot(a, b); }
 inline double len2(v2 v) { return dot(v, v); }
 inline double len(v2 v) { return std::sqrt(len2(v)); }
 inline v2 normalized(v2 v) { return v / len(v); }
 inline v2 operator-(v2 v) { return v * -1; }
+inline v2 normal(v2 v) { return {-v.y, v.x}; }
 
 // this is so called scalar cross product which is solving determinant 2x2
 // of matrix [v0, v1
 //            u0. u1 ]
 inline double cross2d(v2 v, v2 u) { return v[0] * u[1] - v[1] * u[0]; }
+
+// https://web.ma.utexas.edu/users/m408m/Display12-3-4.shtml
+inline v2 projection_v_on_u(v2 u, v2 v) { return ((u * v) / len2(v)) * v; }

@@ -1,4 +1,6 @@
 #include "canvas_widget.hpp"
+
+#include "math.hpp"
 #include "v2.hpp"
 
 #include <QDebug>
@@ -29,11 +31,11 @@ std::array<Point, 4> line_bbox(Line l, double size) {
     std::array<Point, 4> ret;
 
     auto v = v2(l.a, l.b);
-    auto perp_v = normalized(v2(-v.y, v.x));
-    ret[0] = l.a + perp_v * size / 2;
-    ret[1] = l.a + perp_v * -size / 2;
-    ret[2] = l.b + perp_v * -size / 2;
-    ret[3] = l.b + perp_v * size / 2;
+    auto perp_v = normalized(v2(-v.y, v.x)) * size / 2;
+    ret[0] = l.a + perp_v;
+    ret[1] = l.a + perp_v * -1;
+    ret[2] = l.b + perp_v * -1;
+    ret[3] = l.b + perp_v;
 
     return ret;
 }
@@ -41,27 +43,17 @@ std::array<Point, 4> line_bbox(Line l, double size) {
 int wrap_index(size_t index, size_t n) { return ((index % n) + n) % n; }
 
 bool rect_point_hit_test(std::array<Point, 4> rect, Point p) {
-    // dot product of perpendicular to each side (P(AB)) and vector AP should be the same.
-
-    int prev_sign = 1;
-
     for (size_t i = 1; i < 5; ++i) {
         Point p1 = rect[wrap_index(i - 1, 4)];
         Point p2 = rect[wrap_index(i, 4)];
         v2 v{p1, p2};
         v2 u{p1, p};
-        v2 pv = {-v.y, v.x};
+        v2 pv = normal(v);
         double d = dot(pv, u);
         int sign = d > 0 ? 1 : -1;
-
-        if (i > 1) {
-            if (sign != prev_sign) {
-                return false;
-            }
+        if (sign < 0) {
+            return false;
         }
-        prev_sign = sign;
-        // qDebug() << "HITTEST: " << wrap_index(i - 1, 4) << ", " << wrap_index(i, 4)
-        //          << ": dot=" << d;
     }
 
     return true;
@@ -94,6 +86,8 @@ void CanvasWidget::paintEvent(QPaintEvent *event) /*override*/ {
 
     render_lines(&painter, event);
     render_handles(&painter, event);
+    render_debug_elements(&painter, event);
+
     painter.end();
 }
 
@@ -150,7 +144,6 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
         m_points.emplace_back(mouse_world, random_id());
 
         update();
-
     } else if (m_selected_tool == Tool::draw_line) {
         if (m_draw_line_state == DrawLineState::point_a_placed) {
             qDebug() << "point A was placed";
@@ -197,16 +190,20 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
             // properties of things.
         }
 
+        m_projection_points.clear();
         for (auto &line : m_lines) {
-            //            auto& [a, b] = l.l;
-            auto line_screen = world_to_screen(line.l);
-            auto bbox_rect_pts = line_bbox(line_screen, 20.0 / m_scale);
+            auto R = math::closest_point_to_line(line.l.a, line.l.b, mouse_world);
+            m_projection_points.emplace_back(R);
+            qDebug() << "added closest point: " << R.x << ", " << R.y;
 
+            auto line_screen = world_to_screen(line.l);
+            auto bbox_rect_pts = line_bbox(line_screen, 20.0);
             if (rect_point_hit_test(bbox_rect_pts, mouse_screen)) {
                 qDebug() << "hit into line " << line.id.c_str() << "!!!!!";
             } else {
             }
         }
+        update();
     }
 }
 
@@ -289,24 +286,53 @@ void CanvasWidget::render_handles(QPainter *painter, QPaintEvent *) {
     }
 }
 
+void draw_colored_line(QPainter *painter, QPointF p1, QPointF p2, QColor c) {
+    QPen pen;
+    pen.setColor(c);
+    pen.setWidthF(1.0);
+    painter->setPen(pen);
+    painter->drawLine(p1, p2);
+}
+
+void draw_colored_point(QPainter *painter, Point p, QColor c) {
+    QBrush point_brush{c};
+    const size_t half_size = 10;
+    QRectF point_rect{p.x - half_size, p.y - half_size, half_size * 2, half_size * 2};
+    painter->fillRect(point_rect, point_brush);
+}
+
+void CanvasWidget::render_debug_elements(QPainter *painter, QPaintEvent *) {
+    // Render bounding box for lines
+    for (auto &[line, id] : m_lines) {
+        auto &[a, b] = line;
+
+        double size = 20.0 / m_scale;
+
+        auto [r1, r2, r3, r4] = line_bbox(line, size);
+        draw_colored_line(painter, r1, r2, QColor(100, 100, 100));
+        draw_colored_line(painter, r2, r3, QColor(100, 100, 100));
+        draw_colored_line(painter, r3, r4, QColor(100, 100, 100));
+        draw_colored_line(painter, r4, r1, QColor(100, 100, 100));
+
+        draw_colored_line(painter, a, r1, QColor(255, 0, 0));
+        draw_colored_line(painter, a, r2, QColor(255, 255, 0));
+        draw_colored_line(painter, b, r3, QColor(255, 0, 255));
+        draw_colored_line(painter, b, r4, QColor(0, 255, 0));
+    }
+
+    for (auto p : m_projection_points) {
+        draw_colored_point(painter, p, QColor(100, 100, 100));
+    }
+}
+
 void CanvasWidget::render_lines(QPainter *painter, QPaintEvent *) {
     for (auto &[line, id] : m_lines) {
         auto &[a, b] = line;
         QPen pen;
         pen.setColor(QColor{0, 0, 0});
-        pen.setWidthF(1.0 / m_scale);
+        pen.setWidthF(1.0);
         painter->setPen(pen);
-        painter->drawLine(a.x, a.y, b.x, b.y);
-
-        QPen bbox_pen;
-        bbox_pen.setColor(QColor{100, 100, 100});
-        bbox_pen.setWidthF(0.7 / m_scale);
-        painter->setPen(bbox_pen);
-        auto [r1, r2, r3, r4] = line_bbox(line, 20.0 / m_scale);
-        painter->drawLine(r1, r2);
-        painter->drawLine(r2, r3);
-        painter->drawLine(r3, r4);
-        painter->drawLine(r4, r1);
+        painter->drawLine(a, b);
     }
 
     // TODO: move to separate renderer
@@ -362,8 +388,9 @@ bool CanvasWidget::is_object_selected(const LineObj &o) {
 
 QTransform CanvasWidget::get_transformation_matrix() const {
     QTransform m;
-    m.translate(-m_translate_x, -m_translate_y);
     m.scale(m_scale, m_scale);
+    m.translate(-m_translate_x, -m_translate_y);
+
     //    m.translate(width() / 2.0, height() / 2.0);
     return m;
 }
@@ -372,7 +399,6 @@ QTransform CanvasWidget::get_transformation_matrix() const {
 //     selected line has two handles. we can move point of one line wherever we want.
 //     but even more nemeficial is to create a point.
 //     we can also move line itself which will translate the line accordingly.
-//    Once we have this basic functionality implemented, we can try to draw something non-trivial.
-//    For this we will need to be able to set widths.
-//    We will also need to be able to resize things according to specified size.
-//    We will also nened to remove things.
+//    Once we have this basic functionality implemented, we can try to draw something
+//    non-trivial. For this we will need to be able to set widths. We will also need to be able
+//    to resize things according to specified size. We will also nened to remove things.
