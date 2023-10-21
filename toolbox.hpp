@@ -1,8 +1,8 @@
 #pragma once
 
+#include "types.hpp"
 #include <QFrame>
 #include <vector>
-#include "types.hpp"
 
 class QPushButton;
 class QToolButton;
@@ -16,11 +16,19 @@ class ToolBox : public QFrame {
   signals:
     void selected_tool_changed(Tool selected_tool);
 
+  protected:
+    //    void paintEvent(QPaintEvent *event) override;
+    void mouseMoveEvent(QMouseEvent *event) override;
+    void mousePressEvent(QMouseEvent *event) override;
+    void mouseReleaseEvent(QMouseEvent *event) override;
+
   private:
     QToolButton *m_hand_tool;
     QToolButton *m_draw_point_tool;
-    QToolButton *m_draw_line_tool;    
-    QToolButton *m_select_tool;    
+    QToolButton *m_draw_line_tool;
+    QToolButton *m_select_tool;
     Tool m_selected_tool = Tool::hand;
     std::vector<QToolButton *> m_tools;
+
+    QPoint m_offset;
 };

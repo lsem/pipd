@@ -48,3 +48,8 @@ struct Rect {
     double width;
     double height;
 };
+
+struct Model {
+    std::vector<PointObj> points;
+    std::vector<LineObj> lines;
+};

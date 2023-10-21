@@ -1,11 +1,15 @@
 #include "toolbox.hpp"
 
+#include <QDebug>
+#include <QMouseEvent>
+#include <QPainter>
 #include <QPushButton>
+#include <QStyleOption>
 #include <QToolButton>
 #include <QVBoxLayout>
 
 ToolBox::ToolBox(QWidget *parent) : QFrame(parent) {
-    setMaximumWidth(50);
+    //    setMaximumWidth(50);
     setFrameStyle(QFrame::Sunken | QFrame::StyledPanel);
 
     auto layout = new QVBoxLayout();
@@ -37,11 +41,52 @@ ToolBox::ToolBox(QWidget *parent) : QFrame(parent) {
 
     m_hand_tool = add_tool("H", Tool::hand);
     m_draw_point_tool = add_tool("P", Tool::draw_point);
-    m_draw_line_tool = add_tool("L", Tool::draw_line);    
+    m_draw_line_tool = add_tool("L", Tool::draw_line);
     m_select_tool = add_tool("S", Tool::select);
 
     m_hand_tool->setChecked(true);
 
+    setStyleSheet(".QFrame{background-color: red; border: 1px solid black; border-radius: 30px;}");
+
     layout->addStretch();
     setLayout(layout);
+
+    this->layout()->setContentsMargins(10, 30, 10, 10);
+    this->setFixedWidth(60);
+    this->setFixedHeight(300);
 }
+
+// void ToolBox::paintEvent(QPaintEvent *event) {
+//     QFrame::paintEvent(event);
+//     // QStyleOption o;
+//     // o.initFrom(this);
+//     // QPainter p(this);
+//     // style()->drawPrimitive(QStyle::PE_Widget, &o, &p, this);
+
+//     //    QFrame::paintEvent(event);
+// }
+
+void ToolBox::mouseMoveEvent(QMouseEvent *event) {
+    for (auto &t : m_tools) {
+        if (t->underMouse()) {
+            event->ignore();
+            return;
+        }
+    }
+
+    if (event->buttons() & Qt::LeftButton) {
+        move(mapToParent(event->pos() - m_offset));
+    }
+}
+
+void ToolBox::mousePressEvent(QMouseEvent *event) {
+    for (auto &t : m_tools) {
+        if (t->underMouse()) {
+            event->ignore();
+            return;
+        }
+    }
+
+    m_offset = event->pos();
+}
+void ToolBox::mouseReleaseEvent(QMouseEvent *event) {}

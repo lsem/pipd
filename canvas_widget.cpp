@@ -28,6 +28,7 @@ bool in_rect(Point p, Rect r) { return in_rect(p.x, p.y, r); }
 const double SELECT_TOOL_HIT_BBOX = 20.0;
 
 std::array<Point, 4> line_bbox(Line l, double size) {
+
     std::array<Point, 4> ret;
 
     auto v = v2(l.a, l.b);
@@ -38,25 +39,6 @@ std::array<Point, 4> line_bbox(Line l, double size) {
     ret[3] = l.b + perp_v;
 
     return ret;
-}
-
-int wrap_index(size_t index, size_t n) { return ((index % n) + n) % n; }
-
-bool rect_point_hit_test(std::array<Point, 4> rect, Point p) {
-    for (size_t i = 1; i < 5; ++i) {
-        Point p1 = rect[wrap_index(i - 1, 4)];
-        Point p2 = rect[wrap_index(i, 4)];
-        v2 v{p1, p2};
-        v2 u{p1, p};
-        v2 pv = normal(v);
-        double d = dot(pv, u);
-        int sign = d > 0 ? 1 : -1;
-        if (sign < 0) {
-            return false;
-        }
-    }
-
-    return true;
 }
 
 } // namespace
@@ -213,7 +195,7 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
 
             auto line_screen = world_to_screen(line.l);
             auto bbox_rect_pts = line_bbox(line_screen, 20.0);
-            if (rect_point_hit_test(bbox_rect_pts, mouse_screen)) {
+            if (math::rect_point_hit_test(bbox_rect_pts, mouse_screen)) {
                 qDebug() << "hit into line " << line.id.c_str() << "!!!!!";
             } else {
             }

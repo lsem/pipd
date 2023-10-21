@@ -10,6 +10,51 @@ enum class CanvasState { idle, drawing };
 enum class HandToolState { idle, pressed, zooming };
 enum class DrawLineState { waiting_point_a, point_a_placed };
 
+// How we are supposed to implement a function of group select and move:
+//  suppose we selected two lines and three points, and now we want to support some group operation.
+// Say, we want to group it.
+
+// Represents an editor editor. Whenver we need to change the model, we do it through a command.
+struct Command {
+  public:
+    struct Base {
+        virtual ~Base() = default;
+        virtual std::unique_ptr<Base> clone() = 0;
+        virtual void execute() = 0;
+        virtual void undo() = 0;
+    };
+    template <class T> struct Derived : public Base {
+        Derived(T o) : m_o(std::move(o)) {}
+        virtual std::unique_ptr<Base> clone() override { return std::make_unique<Derived<T>>(m_o); }
+        virtual void execute() { m_o.execute(); }
+        virtual void undo() { m_o.undo(); }
+        T m_o;
+    };
+
+  public:
+    template <class T> Command(T t) : m_impl(std::make_unique<Derived<T>>(std::move(t))) {}
+    Command(const Command &) : m_impl(m_impl->clone()) {}
+    void execute() { return m_impl->execute(); }
+    void undo() { return m_impl->undo(); }
+
+  private:
+    std::unique_ptr<Base> m_impl;
+};
+
+class MoveLineCommand {
+  public:
+    void execute() {}
+    void undo() {}
+};
+
+inline void test() {
+
+    MoveLineCommand move_cmd;
+
+    std::vector<Command> cmds;
+    cmds.push_back(std::move(move_cmd));
+}
+
 class CanvasWidget : public QWidget {
     Q_OBJECT
 
@@ -76,4 +121,7 @@ class CanvasWidget : public QWidget {
 
     std::vector<std::string> m_selected_objects;
     std::string m_hitting_line_id;
+
+
+    Model m_model;
 };

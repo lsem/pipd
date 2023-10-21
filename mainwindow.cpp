@@ -26,13 +26,13 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_toolbox, &ToolBox::selected_tool_changed, m_canvas_widget,
             &CanvasWidget::select_tool);
 
-    auto control_and_tools_layout = new QVBoxLayout();
-    control_and_tools_layout->addWidget(m_toolbox);
-    control_and_tools_layout->addWidget(m_layers_window);
+    m_toolbox->move(width() - 100, 30);
+    m_toolbox->resize(m_toolbox->width(), 300);
+    m_toolbox->raise();
 
+    auto control_and_tools_layout = new QVBoxLayout();
     auto *horizontal_layout = new QHBoxLayout(centralWidget());
     horizontal_layout->addWidget(m_canvas_widget);
-    horizontal_layout->addLayout(control_and_tools_layout);
 }
 
 MainWindow::~MainWindow() = default;
