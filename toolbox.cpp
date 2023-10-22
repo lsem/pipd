@@ -15,7 +15,6 @@ ToolBox::ToolBox(QWidget *parent)
 
 {
     auto layout = new QVBoxLayout();
-
     auto add_tool = [this, layout](auto tool_name, auto tool_id) {
         auto tool = new QToolButton(this);
         tool->setCheckable(true);
@@ -33,7 +32,6 @@ ToolBox::ToolBox(QWidget *parent)
                 }
                 if (m_selected_tool != tool_id) {
                     m_selected_tool = tool_id;
-                    qDebug() << "emit signal";
                     emit selected_tool_changed(m_selected_tool);
                 }
             }
@@ -78,14 +76,5 @@ void ToolBox::mouseMoveEvent(QMouseEvent *event) {
     }
 }
 
-void ToolBox::mousePressEvent(QMouseEvent *event) {
-    for (auto &t : m_tools) {
-        if (t->underMouse()) {
-            event->ignore();
-            return;
-        }
-    }
-
-    m_offset = event->pos();
-}
+void ToolBox::mousePressEvent(QMouseEvent *event) { m_offset = event->pos(); }
 void ToolBox::mouseReleaseEvent(QMouseEvent *event) {}
