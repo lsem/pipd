@@ -47,6 +47,7 @@ struct Rect {
     double y;
 
     Point upper_left_corner() const { return {x, y}; }
+    Point center() const { return {x + width / 2, y + height / 2}; }
     double width;
     double height;
 };

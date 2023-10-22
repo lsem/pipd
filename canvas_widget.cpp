@@ -7,9 +7,16 @@
 #include <QPaintEvent>
 #include <QPainter>
 
+#include <sstream>
 #include <vector>
 
 namespace {
+std::string format_distance_display_text(double distance) {
+    std::stringstream ss;
+    ss << static_cast<int>(std::round(distance)) << "m";
+    return ss.str();
+}
+
 QPointF to_qpointf(Point p) { return QPointF(p.x, p.y); }
 Point to_point(QPointF p) { return Point(p.x(), p.y()); }
 QRectF to_qrectf(Rect r) { return QRectF(r.x, r.y, r.width, r.height); }
@@ -39,6 +46,7 @@ std::array<Point, 4> line_bbox(Line l, double size) {
 
     return ret;
 }
+
 void draw_colored_line(QPainter *painter, Point p1, Point p2, QColor c, double width = 1.0) {
     QPen pen;
     pen.setColor(c);
@@ -47,14 +55,35 @@ void draw_colored_line(QPainter *painter, Point p1, Point p2, QColor c, double w
     painter->drawLine(to_qpointf(p1), to_qpointf(p2));
 }
 
+void draw_rect(QPainter *painter, Rect r, QColor c, double width = 1.0) {
+    QPen pen;
+    pen.setColor(c);
+    pen.setWidthF(width);
+    painter->setPen(pen);
+    painter->drawRect(to_qrectf(r));
+}
+
 void draw_colored_line(QPainter *painter, Line l, QColor c, double width = 1.0) {
     draw_colored_line(painter, l.a, l.b, c, width);
 }
 
-void draw_colored_point(QPainter *painter, Point p, QColor c) {
+void draw_dashed_line(QPainter *painter, Point p1, Point p2, QColor c, double width = 1.0) {
+    QPen pen;
+    pen.setColor(c);
+    pen.setStyle(Qt::DashDotDotLine);
+    pen.setWidthF(width);
+    painter->setPen(pen);
+    painter->drawLine(to_qpointf(p1), to_qpointf(p2));
+}
+
+void draw_dashed_line(QPainter *painter, Line l, QColor c, double width = 1.0) {
+    draw_dashed_line(painter, l.a, l.b, c, width);
+}
+
+void draw_colored_point(QPainter *painter, Point p, QColor c, double size = 5.0) {
     QBrush point_brush{c};
-    const size_t half_size = 10;
-    QRectF point_rect{p.x - half_size, p.y - half_size, half_size * 2, half_size * 2};
+    const size_t half_size = size / 2;
+    QRectF point_rect{p.x - half_size, p.y - half_size, size, size};
     painter->fillRect(point_rect, point_brush);
 }
 
@@ -408,12 +437,7 @@ void CanvasWidget::render_debug_elements(QPainter *painter, QPaintEvent *) {
 void CanvasWidget::render_lines(QPainter *painter, QPaintEvent *) {
     for (auto &line_obj : m_model.lines) {
         auto &[a, b] = line_obj.l;
-        QPen pen;
-        pen.setColor(QColor{0, 0, 0});
-        pen.setWidthF(1.0 / m_scale);
-        painter->setPen(pen);
-        painter->drawLine(to_qpointf(a), to_qpointf(b));
-        draw_colored_line(painter, a, b, Qt::black, 1.0 / m_scale);
+        draw_colored_line(painter, a, b, Qt::black, thin_line_width());
 
         // Draw shadows for each line as well in this loop. While formally it is a model, but this
         // looks convinient at this modent.
@@ -421,9 +445,61 @@ void CanvasWidget::render_lines(QPainter *painter, QPaintEvent *) {
         // (if editorFlags & hasMovingShadows)
         if (line_obj.flags & ObjFlags::moving) {
             auto &shadow = line_obj.shadow_l;
-            draw_colored_line(painter, shadow, QColor(80, 80, 80), 1.0 / m_scale);
-            draw_colored_line(painter, Line{a, shadow.a}, QColor(200, 200, 200), 1.0 / m_scale);
-            draw_colored_line(painter, Line{b, shadow.b}, QColor(200, 200, 200), 1.0 / m_scale);
+            draw_colored_line(painter, shadow, QColor(80, 80, 80), thin_line_width());
+            draw_colored_line(painter, Line{a, shadow.a}, QColor(200, 200, 200), thin_line_width());
+            draw_colored_line(painter, Line{b, shadow.b}, QColor(200, 200, 200), thin_line_width());
+
+            // line connecting centers of line and its shadow
+            Point c1 = a + v2{a, b} / 2;
+            Point c2 = shadow.a + v2{shadow.a, shadow.b} / 2;
+            double dist = len(v2(c1, c2));
+            draw_dashed_line(painter, c1, c2, QColor(150, 150, 150), thin_line_width());
+
+            v2 c1c2_center = (c1 + c2) / 2;
+            Rect r{c1c2_center.x, c1c2_center.y, 100, 100};
+            draw_colored_point(painter, c1c2_center, Qt::black);
+            auto diff = r.upper_left_corner() - r.center();
+
+            r.x += diff.x;
+            r.y += diff.y; // TODO: we need method adjust and method for constructing rect around
+                           // center of given size.
+
+            // Move rect just above the line so that text is on top of the line instead of directly
+            // on the line.
+            r.y -= 20;
+
+            painter->save();
+
+            // https://www.jwwalker.com/pages/angle-between-vectors.html
+            v2 v1{c1, c2}; // TODO: we already have this vector somewhere above
+            v2 v2{100, 0}; // arbitray horizontal vector
+
+            double theta = std::atan2(v2.y, v2.x) - atan2(v1.y, v1.x);
+            double theta_degrees = theta / M_PI * 180.0;
+
+            qDebug() << "theta=" << theta;
+
+            // Theta is in rage: 180.0 - 180.0
+	    // TODO: explain this
+
+            if (theta > M_PI_2 && theta < M_PI) {
+                qDebug() << "zone2";
+                theta_degrees += 180.0;
+            } else if (theta > -M_PI && theta < -M_PI_2) {
+                qDebug() << "zone3";
+                theta_degrees += 180.0;
+            }
+
+            qDebug() << "theta_degrees=" << theta_degrees;
+
+            auto qr = to_qrectf(r);
+
+            painter->translate(qr.center());
+            painter->rotate(-theta_degrees);
+            painter->translate(-qr.center());
+            painter->drawText(qr, Qt::AlignCenter | Qt::AlignVCenter,
+                              format_distance_display_text(dist).c_str());
+            painter->restore();
         }
     }
 

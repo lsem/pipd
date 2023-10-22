@@ -79,6 +79,9 @@ class CanvasWidget : public QWidget {
     void render_lines(QPainter *painter, QPaintEvent *);
     void render_debug_elements(QPainter *painter, QPaintEvent *);
 
+    double scaled(double x) const { return x / m_scale; }
+    double thin_line_width() const { return scaled(1.0); }
+
     Point world_to_screen(Point p);
     Point screen_to_world(Point p);
     Line world_to_screen(Line p);
