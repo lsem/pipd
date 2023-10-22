@@ -12,22 +12,14 @@ struct Point {
     double y = 0.0;
 
     Point(double x, double y) : x(x), y(y) {}
-    Point(QPointF p) : x(p.x()), y(p.y()) {}
     Point() = default;
-
-    operator QPointF() const { return QPointF(x, y); }
 };
 
 QDebug &operator<<(QDebug &os, Point t);
 
-// PointObj is a "Point Object". Anything that may be important for our drawing. It may be a corner
-// of a house or room, or other important vertex. It is different from just geometry that it can
-// have an ID, description, etc.. Also, it has different handling and representation in the canvas.
-// E.g. we can link vertex of a line to point and by moving point we also move all accociated
-// vertices.
-struct PointObj : public Point {
-    PointObj(double x, double y, std::string id) : Point(x, y), id(std::move(id)) {}
-    PointObj(Point p, std::string id) : Point(p), id(std::move(id)) {}
+struct PointObj {
+    PointObj(Point p, std::string id) : pt(p), id(std::move(id)) {}
+    Point pt;
     std::string id;
 };
 
@@ -45,6 +37,8 @@ struct LineObj {
 struct Rect {
     double x;
     double y;
+
+    Point upper_left_corner() const { return {x, y}; }
     double width;
     double height;
 };

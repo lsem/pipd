@@ -98,7 +98,6 @@ class CanvasWidget : public QWidget {
 
   private:
     CanvasState m_state = CanvasState::idle;
-    // std::vector<Point> m_current_shape;
     Tool m_selected_tool = Tool::hand;
 
     int m_translate_x = 0;
@@ -116,12 +115,8 @@ class CanvasWidget : public QWidget {
     Point m_line_point_b{0, 0};
     std::vector<Point> m_projection_points;
 
-    std::vector<PointObj> m_points;
-    std::vector<LineObj> m_lines;
-
     std::vector<std::string> m_selected_objects;
     std::string m_hitting_line_id;
-
 
     Model m_model;
 };
