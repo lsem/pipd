@@ -256,7 +256,7 @@ void CanvasWidget::wheelEvent(QWheelEvent *event) {
 }
 
 void CanvasWidget::render_background(QPainter *painter, QPaintEvent *event) {
-    QBrush brush{QColor{227, 227, 227}};
+    QBrush brush{QColor{235, 235, 235}};
     painter->fillRect(event->rect(), brush);
 }
 

@@ -62,7 +62,7 @@ void ToolBox::paintEvent(QPaintEvent *event) {
 
     QPainterPath path;
     path.addRoundedRect(QRectF(0, 0, width(), height()), 10, 10);
-    painter.fillPath(path, QColor(150, 150, 150));
+    painter.fillPath(path, QColor(200, 200, 200));
 }
 
 void ToolBox::mouseMoveEvent(QMouseEvent *event) {
