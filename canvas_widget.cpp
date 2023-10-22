@@ -91,8 +91,8 @@ void draw_colored_point(QPainter *painter, Point p, QColor c, double size = 5.0)
 
 CanvasWidget::CanvasWidget(QWidget *parent) : QWidget(parent) {
     // put few points for the test.
-    m_model.points.emplace_back(PointObj{{20, 20}, "1"});
-    m_model.points.emplace_back(PointObj{{100, 100}, "2"});
+    // m_model.points.emplace_back(PointObj{{20, 20}, "1"});
+    // m_model.points.emplace_back(PointObj{{100, 100}, "2"});
 }
 
 CanvasWidget::~CanvasWidget() = default;
@@ -480,7 +480,7 @@ void CanvasWidget::render_lines(QPainter *painter, QPaintEvent *) {
             qDebug() << "theta=" << theta;
 
             // Theta is in rage: 180.0 - 180.0
-	    // TODO: explain this
+            // TODO: explain this
 
             if (theta > M_PI_2 && theta < M_PI) {
                 qDebug() << "zone2";
