@@ -15,9 +15,9 @@
 #include <QVBoxLayout>
 
 MainWindow::MainWindow(QWidget *parent)
-    // Qt::FramelessWindowHint | Qt::WindowSystemMenuHint)
     : QMainWindow(parent), ui(new Ui::MainWindow), m_canvas_widget(new CanvasWidget{this}),
-      m_toolbox(new ToolBox{this}), m_layers_window{new LayersWindow{this}} {
+      m_toolbox(new ToolBox{this}) {
+
     ui->setupUi(this);
     this->setWindowTitle(QString::fromUtf8("pipd"));
 
@@ -30,8 +30,8 @@ MainWindow::MainWindow(QWidget *parent)
     m_toolbox->resize(m_toolbox->width(), 300);
     m_toolbox->raise();
 
-    auto control_and_tools_layout = new QVBoxLayout();
     auto *horizontal_layout = new QHBoxLayout(centralWidget());
+    horizontal_layout->setContentsMargins(0, 0, 0, 0);
     horizontal_layout->addWidget(m_canvas_widget);
 }
 

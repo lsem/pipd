@@ -1,17 +1,19 @@
 #include "toolbox.hpp"
 
 #include <QDebug>
+#include <QGridLayout>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QPainterPath>
 #include <QPushButton>
 #include <QStyleOption>
 #include <QToolButton>
 #include <QVBoxLayout>
 
-ToolBox::ToolBox(QWidget *parent) : QFrame(parent) {
-    //    setMaximumWidth(50);
-    setFrameStyle(QFrame::Sunken | QFrame::StyledPanel);
+ToolBox::ToolBox(QWidget *parent)
+    : QWidget(parent)
 
+{
     auto layout = new QVBoxLayout();
 
     auto add_tool = [this, layout](auto tool_name, auto tool_id) {
@@ -46,25 +48,22 @@ ToolBox::ToolBox(QWidget *parent) : QFrame(parent) {
 
     m_hand_tool->setChecked(true);
 
-    setStyleSheet(".QFrame{background-color: red; border: 1px solid black; border-radius: 30px;}");
-
     layout->addStretch();
     setLayout(layout);
 
     this->layout()->setContentsMargins(10, 30, 10, 10);
-    this->setFixedWidth(60);
+    this->setFixedWidth(55);
     this->setFixedHeight(300);
 }
 
-// void ToolBox::paintEvent(QPaintEvent *event) {
-//     QFrame::paintEvent(event);
-//     // QStyleOption o;
-//     // o.initFrom(this);
-//     // QPainter p(this);
-//     // style()->drawPrimitive(QStyle::PE_Widget, &o, &p, this);
+void ToolBox::paintEvent(QPaintEvent *event) {
+    QPainter painter(this);
+    painter.setRenderHint(QPainter::Antialiasing);
 
-//     //    QFrame::paintEvent(event);
-// }
+    QPainterPath path;
+    path.addRoundedRect(QRectF(0, 0, width(), height()), 10, 10);
+    painter.fillPath(path, QColor(150, 150, 150));
+}
 
 void ToolBox::mouseMoveEvent(QMouseEvent *event) {
     for (auto &t : m_tools) {

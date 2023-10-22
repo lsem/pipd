@@ -25,6 +25,5 @@ class MainWindow : public QMainWindow {
     std::unique_ptr<Ui::MainWindow> ui;
     CanvasWidget *m_canvas_widget{};
     ToolBox *m_toolbox{};
-    LayersWindow *m_layers_window{};
 };
 #endif // MAINWINDOW_H

@@ -7,7 +7,7 @@
 class QPushButton;
 class QToolButton;
 
-class ToolBox : public QFrame {
+class ToolBox : public QWidget {
     Q_OBJECT
   public:
     explicit ToolBox(QWidget *parent = nullptr);
@@ -17,7 +17,7 @@ class ToolBox : public QFrame {
     void selected_tool_changed(Tool selected_tool);
 
   protected:
-    //    void paintEvent(QPaintEvent *event) override;
+    void paintEvent(QPaintEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
@@ -29,6 +29,5 @@ class ToolBox : public QFrame {
     QToolButton *m_select_tool;
     Tool m_selected_tool = Tool::hand;
     std::vector<QToolButton *> m_tools;
-
     QPoint m_offset;
 };
