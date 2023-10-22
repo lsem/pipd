@@ -3,7 +3,11 @@
 #include <QPointF>
 #include <string>
 
-enum class Tool { hand, select, draw_point, draw_line };
+namespace ObjFlags {
+enum { selected = 0x01, moving = 0x02 };
+};
+
+enum class Tool { hand, select, draw_point, draw_line, move };
 
 QDebug &operator<<(QDebug &os, Tool t);
 
@@ -26,11 +30,15 @@ struct PointObj {
 struct Line {
     Point a;
     Point b;
+
+    std::tuple<Point, Point> endpoints() const { return {a, b}; }
 };
 
 struct LineObj {
     Line l;
+    Line shadow_l;
     std::string id;
+    unsigned flags = 0;
 };
 
 // Defines by upper-left corner and width, height.

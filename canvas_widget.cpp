@@ -39,6 +39,24 @@ std::array<Point, 4> line_bbox(Line l, double size) {
 
     return ret;
 }
+void draw_colored_line(QPainter *painter, Point p1, Point p2, QColor c, double width = 1.0) {
+    QPen pen;
+    pen.setColor(c);
+    pen.setWidthF(width);
+    painter->setPen(pen);
+    painter->drawLine(to_qpointf(p1), to_qpointf(p2));
+}
+
+void draw_colored_line(QPainter *painter, Line l, QColor c, double width = 1.0) {
+    draw_colored_line(painter, l.a, l.b, c, width);
+}
+
+void draw_colored_point(QPainter *painter, Point p, QColor c) {
+    QBrush point_brush{c};
+    const size_t half_size = 10;
+    QRectF point_rect{p.x - half_size, p.y - half_size, half_size * 2, half_size * 2};
+    painter->fillRect(point_rect, point_brush);
+}
 
 } // namespace
 
@@ -82,6 +100,15 @@ void CanvasWidget::paintEvent(QPaintEvent *event) /*override*/ {
 void CanvasWidget::mouseMoveEvent(QMouseEvent *event) {
     auto mouse_screen = Point{static_cast<double>(event->x()), static_cast<double>(event->y())};
     auto mouse_world = screen_to_world(mouse_screen);
+    double x = event->x();
+    double y = event->y();
+    auto dx = x - m_prev_x;
+    auto dy = y - m_prev_y;
+    m_prev_x = event->x();
+    m_prev_y = event->y();
+    double sdx = dx / m_scale;
+    double sdy = dy / m_scale;
+
     switch (m_selected_tool) {
     case Tool::draw_point: {
         break;
@@ -96,11 +123,6 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent *event) {
     }
     case Tool::hand: {
         if (m_hand_tool_state == HandToolState::pressed) {
-            auto dx = event->x() - m_prev_x;
-            auto dy = event->y() - m_prev_y;
-            m_prev_x = event->x();
-            m_prev_y = event->y();
-
             m_translate_x -= dx;
             m_translate_y -= dy;
 
@@ -111,7 +133,10 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent *event) {
     }
     case Tool::select: {
         m_hitting_line_id = false;
-        for (auto &[line, id] : m_model.lines) {
+        for (auto &line_obj : m_model.lines) {
+            auto &line = line_obj.l;
+            auto &id = line_obj.id;
+
             auto p = math::closest_point_to_line(line.a, line.b, mouse_world);
             if (len(v2(mouse_world, p)) < 10) {
                 m_hitting_line_id = id;
@@ -120,15 +145,31 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent *event) {
         update();
         break;
     }
+    case Tool::move: {
+        bool moved = false;
+        for (auto &line : m_model.lines) {
+            if (line.flags & ObjFlags::moving) {
+                moved = true;
+
+                line.shadow_l.a.x += sdx;
+                line.shadow_l.b.x += sdx;
+                line.shadow_l.a.y += sdy;
+                line.shadow_l.b.y += sdy;
+            }
+        }
+        if (moved)
+            update();
+        break;
+    }
     default:
-        assert(false && "not reachable");
+        break;
     }
 }
 
 std::string random_id() {
     std::string s;
     for (int i = 0; i < 12; ++i) {
-        s += (rand() % 'Z' - 'A') + 'A';
+        s += (rand() % ('Z' - 'A')) + 'A';
     }
     return s;
 }
@@ -136,6 +177,9 @@ std::string random_id() {
 void CanvasWidget::mousePressEvent(QMouseEvent *event) {
     double x = event->x();
     double y = event->y();
+
+    m_prev_x = x;
+    m_prev_y = y;
 
     qDebug() << "clicked at " << x << ", " << y;
 
@@ -219,12 +263,42 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
         update();
         break;
     }
+    case Tool::move: {
+        // By default qt enables tracking only while button is pressed but we want to have object
+        // moved without any press.
+        setMouseTracking(true);
+        qDebug() << "mousePress: move tool selected";
+        // Selecto tool works only on objects that are currently under cursor.
+        // so we first need to find what object is under cursor. We expect there could be only one
+        // object under cursor. If this is not possible then we can use preselected tool with Select
+        // tool and by doing this at the moment we try to apply Move tool, we should already have
+        // object selected so we can ignore all objects which are not in selected state. But for for
+        // now, for the sake of simplicity, we can just consider everything and see how it works.
+
+        for (auto &line : m_model.lines) {
+            if (line.flags & ObjFlags::moving) {
+                line.flags &= ~ObjFlags::moving;
+                line.l = line.shadow_l;
+            } else {
+                auto &line_geometry = line.l;
+                auto r = math::closest_point_to_line(line_geometry.a, line_geometry.b, mouse_world);
+                const double dist = len(v2{mouse_world, r});
+                if (dist < 10) {
+                    qDebug() << "The line [" << line.id.c_str() << "] is close to cursor";
+                    line.flags |= ObjFlags::moving;
+                    line.shadow_l = line.l;
+                }
+            }
+            update();
+        }
+
+        break;
+    }
     default:
-        assert(false && "not reachable");
+        break;
     }
     }
 }
-
 void CanvasWidget::mouseReleaseEvent(QMouseEvent *event) {
     switch (m_selected_tool) {
     case Tool::draw_point: {
@@ -235,6 +309,9 @@ void CanvasWidget::mouseReleaseEvent(QMouseEvent *event) {
         if (m_hand_tool_state == HandToolState::pressed) {
             m_hand_tool_state = HandToolState::idle;
         }
+        break;
+    }
+    case Tool::move: {
         break;
     }
     default: {
@@ -297,38 +374,22 @@ void CanvasWidget::render_handles(QPainter *painter, QPaintEvent *) {
     }
 }
 
-void draw_colored_line(QPainter *painter, Point p1, Point p2, QColor c) {
-    QPen pen;
-    pen.setColor(c);
-    pen.setWidthF(1.0);
-    painter->setPen(pen);
-    painter->drawLine(to_qpointf(p1), to_qpointf(p2));
-}
-
-void draw_colored_point(QPainter *painter, Point p, QColor c) {
-    QBrush point_brush{c};
-    const size_t half_size = 10;
-    QRectF point_rect{p.x - half_size, p.y - half_size, half_size * 2, half_size * 2};
-    painter->fillRect(point_rect, point_brush);
-}
-
 void CanvasWidget::render_debug_elements(QPainter *painter, QPaintEvent *) {
     // Render bounding box for lines
-    for (auto &[line, id] : m_model.lines) {
-        auto &[a, b] = line;
-
+    for (auto &line_obj : m_model.lines) {
+        auto [a, b] = line_obj.l.endpoints();
         double size = 20.0 / m_scale;
 
-        auto [r1, r2, r3, r4] = line_bbox(line, size);
-        draw_colored_line(painter, r1, r2, QColor(100, 100, 100));
-        draw_colored_line(painter, r2, r3, QColor(100, 100, 100));
-        draw_colored_line(painter, r3, r4, QColor(100, 100, 100));
-        draw_colored_line(painter, r4, r1, QColor(100, 100, 100));
+        // auto [r1, r2, r3, r4] = line_bbox(line_obj.l, size);
+        // draw_colored_line(painter, r1, r2, QColor(100, 100, 100));
+        // draw_colored_line(painter, r2, r3, QColor(100, 100, 100));
+        // draw_colored_line(painter, r3, r4, QColor(100, 100, 100));
+        // draw_colored_line(painter, r4, r1, QColor(100, 100, 100));
 
-        draw_colored_line(painter, a, r1, QColor(255, 0, 0));
-        draw_colored_line(painter, a, r2, QColor(255, 255, 0));
-        draw_colored_line(painter, b, r3, QColor(255, 0, 255));
-        draw_colored_line(painter, b, r4, QColor(0, 255, 0));
+        // draw_colored_line(painter, a, r1, QColor(255, 0, 0));
+        // draw_colored_line(painter, a, r2, QColor(255, 255, 0));
+        // draw_colored_line(painter, b, r3, QColor(255, 0, 255));
+        // draw_colored_line(painter, b, r4, QColor(0, 255, 0));
     }
 
     for (auto p : m_projection_points) {
@@ -345,13 +406,25 @@ void CanvasWidget::render_debug_elements(QPainter *painter, QPaintEvent *) {
 }
 
 void CanvasWidget::render_lines(QPainter *painter, QPaintEvent *) {
-    for (auto &[line, id] : m_model.lines) {
-        auto &[a, b] = line;
+    for (auto &line_obj : m_model.lines) {
+        auto &[a, b] = line_obj.l;
         QPen pen;
         pen.setColor(QColor{0, 0, 0});
-        pen.setWidthF(1.0);
+        pen.setWidthF(1.0 / m_scale);
         painter->setPen(pen);
         painter->drawLine(to_qpointf(a), to_qpointf(b));
+        draw_colored_line(painter, a, b, Qt::black, 1.0 / m_scale);
+
+        // Draw shadows for each line as well in this loop. While formally it is a model, but this
+        // looks convinient at this modent.
+        // TODO: optimize this loop if there is not moved shadows right now in the EditorState. Like
+        // (if editorFlags & hasMovingShadows)
+        if (line_obj.flags & ObjFlags::moving) {
+            auto &shadow = line_obj.shadow_l;
+            draw_colored_line(painter, shadow, QColor(80, 80, 80), 1.0 / m_scale);
+            draw_colored_line(painter, Line{a, shadow.a}, QColor(200, 200, 200), 1.0 / m_scale);
+            draw_colored_line(painter, Line{b, shadow.b}, QColor(200, 200, 200), 1.0 / m_scale);
+        }
     }
 
     // TODO: move to separate renderer

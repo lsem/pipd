@@ -14,6 +14,9 @@ QDebug &operator<<(QDebug &os, Tool t) {
     case Tool::select:
         os << "select";
         break;
+    case Tool::move:
+        os << "move";
+        break;
     default:
         os << "<tool:unknown>";
         break;
