@@ -21,6 +21,9 @@ class MainWindow : public QMainWindow {
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
+  protected:
+    void resizeEvent(QResizeEvent *event);
+
   private:
     std::unique_ptr<Ui::MainWindow> ui;
     CanvasWidget *m_canvas_widget{};

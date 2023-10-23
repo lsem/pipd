@@ -5,6 +5,8 @@
 
 namespace math {
 
+inline double points_distance(Point a, Point b) { return len(v2{a, b}); }
+
 inline Point closest_point_to_line(Point a, Point b, Point c) {
     v2 v{a, b};
     v2 u{a, c};

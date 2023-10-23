@@ -81,6 +81,7 @@ class CanvasWidget : public QWidget {
 
     double scaled(double x) const { return x / m_scale; }
     double thin_line_width() const { return scaled(1.0); }
+    double thicker_line_width() const { return scaled(2.0); }
 
     Point world_to_screen(Point p);
     Point screen_to_world(Point p);

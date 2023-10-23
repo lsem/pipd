@@ -4,7 +4,7 @@
 #include <string>
 
 namespace ObjFlags {
-enum { selected = 0x01, moving = 0x02 };
+enum { selected = 0x01, moving = 0x02, howered = 0x04 };
 };
 
 enum class Tool { hand, select, draw_point, draw_line, move };
@@ -40,6 +40,17 @@ struct LineObj {
     std::string id;
     unsigned flags = 0;
 };
+
+// What if we just create separate endpoints in the model and somehow connect them in the model?
+// BTW, how we can connect them?
+// we can have separte list of connections. This way rendering does not need to lookup for the
+// connection and just render what we have: points and lines.
+//
+// Another question, can we put a point on a line and then connect with another line?
+// It seems to be useful because we may want to denote a wall and only then draw it. We can also
+// want to slide this point along the line. Or, we may want to slide a wall using M tool and slide
+// two endpoints along the lines.
+
 
 // Defines by upper-left corner and width, height.
 struct Rect {

@@ -102,7 +102,7 @@ void CanvasWidget::select_tool(Tool tool) {
     m_selected_tool = tool;
 
     // By default only select tool has tracking on.
-    if (m_selected_tool == Tool::select) {
+    if (m_selected_tool == Tool::select || m_selected_tool == Tool::move) {
         setMouseTracking(true);
     } else {
         setMouseTracking(false);
@@ -175,19 +175,41 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent *event) {
         break;
     }
     case Tool::move: {
-        bool moved = false;
+        bool update_needed = false;
+
         for (auto &line : m_model.lines) {
             if (line.flags & ObjFlags::moving) {
-                moved = true;
+                update_needed = true;
 
                 line.shadow_l.a.x += sdx;
                 line.shadow_l.b.x += sdx;
                 line.shadow_l.a.y += sdy;
                 line.shadow_l.b.y += sdy;
+            } else {
+                auto &line_geometry = line.l;
+                if (math::points_distance(line_geometry.a, mouse_world) < 10.0) {
+                    qDebug() << "MOVE: around A endpoint";
+
+                } else if (math::points_distance(line_geometry.b, mouse_world) < 10.0) {
+                    qDebug() << "MOVE: around B endpoint";
+                } else {
+                    auto r =
+                        math::closest_point_to_line(line_geometry.a, line_geometry.b, mouse_world);
+                    const double dist = len(v2{mouse_world, r});
+                    if (dist < 10) {
+                        qDebug() << "MOVE: around line " << line.id.c_str();
+                        line.flags |= ObjFlags::howered;
+                        update_needed = true;
+                    } else {
+                        line.flags &= ~ObjFlags::howered;
+                        update_needed = true;
+                    }
+                }
             }
         }
-        if (moved)
+        if (update_needed)
             update();
+
         break;
     }
     default:
@@ -310,12 +332,29 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
                 line.l = line.shadow_l;
             } else {
                 auto &line_geometry = line.l;
-                auto r = math::closest_point_to_line(line_geometry.a, line_geometry.b, mouse_world);
-                const double dist = len(v2{mouse_world, r});
-                if (dist < 10) {
-                    qDebug() << "The line [" << line.id.c_str() << "] is close to cursor";
-                    line.flags |= ObjFlags::moving;
-                    line.shadow_l = line.l;
+
+                // Move tool has different handling of lines and endpoints. For endpoints, Move tool
+                // moves endpoints and lines follow them if they are associated with it. For line it
+                // translates the line as is.
+                // TODO: in mouseMove handler, highlight current endpoints or line that. We can
+                // either repeat this logic or we can somehow delegate this into Move tool. What if
+                // move tool can handle events. class MoveTool { void on_mouse_move(); void
+                // on_press(); void on_release(); void render_state(QPainter, Model) {} }
+                if (math::points_distance(line_geometry.a, mouse_world) < 10.0) {
+                    qDebug() << "around A endpoint";
+                    //
+                } else if (math::points_distance(line_geometry.b, mouse_world) < 10.0) {
+                    qDebug() << "around B endpoint";
+                } else {
+                    qDebug() << "around line";
+                    auto r =
+                        math::closest_point_to_line(line_geometry.a, line_geometry.b, mouse_world);
+                    const double dist = len(v2{mouse_world, r});
+                    if (dist < 10) {
+                        qDebug() << "The line [" << line.id.c_str() << "] is close to cursor";
+                        line.flags |= ObjFlags::moving;
+                        line.shadow_l = line.l;
+                    }
                 }
             }
             update();
@@ -439,10 +478,10 @@ void CanvasWidget::render_lines(QPainter *painter, QPaintEvent *) {
         auto &[a, b] = line_obj.l;
         draw_colored_line(painter, a, b, Qt::black, thin_line_width());
 
-        // Draw shadows for each line as well in this loop. While formally it is a model, but this
-        // looks convinient at this modent.
-        // TODO: optimize this loop if there is not moved shadows right now in the EditorState. Like
-        // (if editorFlags & hasMovingShadows)
+        // Draw shadows for each line as well in this loop. While formally it is a model,
+        // but this looks convinient at this modent.
+        // TODO: optimize this loop if there is not moved shadows right now in the
+        // EditorState. Like (if editorFlags & hasMovingShadows)
         if (line_obj.flags & ObjFlags::moving) {
             auto &shadow = line_obj.shadow_l;
             draw_colored_line(painter, shadow, QColor(80, 80, 80), thin_line_width());
@@ -461,11 +500,11 @@ void CanvasWidget::render_lines(QPainter *painter, QPaintEvent *) {
             auto diff = r.upper_left_corner() - r.center();
 
             r.x += diff.x;
-            r.y += diff.y; // TODO: we need method adjust and method for constructing rect around
-                           // center of given size.
+            r.y += diff.y; // TODO: we need method adjust and method for constructing rect
+                           // around center of given size.
 
-            // Move rect just above the line so that text is on top of the line instead of directly
-            // on the line.
+            // Move rect just above the line so that text is on top of the line instead of
+            // directly on the line.
             r.y -= 20;
 
             painter->save();
@@ -500,6 +539,8 @@ void CanvasWidget::render_lines(QPainter *painter, QPaintEvent *) {
             painter->drawText(qr, Qt::AlignCenter | Qt::AlignVCenter,
                               format_distance_display_text(dist).c_str());
             painter->restore();
+        } else if (line_obj.flags & ObjFlags::howered) {
+            draw_colored_line(painter, a, b, Qt::blue, thicker_line_width());
         }
     }
 
