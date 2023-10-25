@@ -553,17 +553,11 @@ void CanvasWidget::render_lines(QPainter *painter, QPaintEvent *) {
 
             painter->save();
 
-            // https://www.jwwalker.com/pages/angle-between-vectors.html
-            v2 v1{c1, c2}; // TODO: we already have this vector somewhere above
-            v2 v2{100, 0}; // arbitray horizontal vector
-
-            double theta = std::atan2(v2.y, v2.x) - atan2(v1.y, v1.x);
+            v2 v1{c1, c2};
+            double theta = -std::atan2(v1.y, v1.x); // the angle between v1 and X axis.
             double theta_degrees = theta / M_PI * 180.0;
 
             qDebug() << "theta=" << theta;
-
-            // Theta is in rage: 180.0 - 180.0
-            // TODO: explain this
 
             if (theta > M_PI_2 && theta < M_PI) {
                 qDebug() << "zone2";

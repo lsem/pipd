@@ -21,7 +21,7 @@ inline Point closest_point_to_line(Point a, Point b, Point c) {
 
 int wrap_index(size_t index, size_t n) { return ((index % n) + n) % n; }
 
-bool rect_point_hit_test(std::array<Point, 4> rect, Point p) {
+inline bool rect_point_hit_test(std::array<Point, 4> rect, Point p) {
     for (size_t i = 1; i < 5; ++i) {
         Point p1 = rect[wrap_index(i - 1, 4)];
         Point p2 = rect[wrap_index(i, 4)];
@@ -36,6 +36,10 @@ bool rect_point_hit_test(std::array<Point, 4> rect, Point p) {
     }
 
     return true;
+}
+
+inline double angle_between_vectors(::v2 v1, ::v2 v2) {
+    return std::atan2(v2.y, v2.x) - atan2(v1.y, v1.x);
 }
 
 } // namespace math
