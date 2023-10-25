@@ -46,6 +46,18 @@ std::array<Point, 4> line_bbox(Line l, double size) {
 
     return ret;
 }
+// Scales line around the center. Center is not changed but endpoints go nearer or further to the
+// center.
+Line scale_line(Line l, double factor) {
+    v2 center = (l.a + l.b) / 2;
+    QTransform m;
+    m.translate(center.x, center.y);
+    m.scale(factor, factor);
+    m.translate(-center.x, -center.y);
+    QPointF q1 = to_qpointf(l.a) * m;
+    QPointF q2 = to_qpointf(l.b) * m;
+    return Line{to_point(q1), to_point(q2)};
+}
 
 void draw_colored_line(QPainter *painter, Point p1, Point p2, QColor c, double width = 1.0) {
     QPen pen;
@@ -198,9 +210,12 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent *event) {
                 auto &line_geometry = line.l;
                 if (math::points_distance(line_geometry.a, mouse_world) < 10.0) {
                     qDebug() << "MOVE: around A endpoint";
-
+                    line.flags |= ObjFlags::a_endpoint_move_howered;
+                    update_needed = true;
                 } else if (math::points_distance(line_geometry.b, mouse_world) < 10.0) {
                     qDebug() << "MOVE: around B endpoint";
+                    line.flags |= ObjFlags::b_endpoint_move_howered;
+                    update_needed = true;
                 } else {
                     auto r =
                         math::closest_point_to_line(line_geometry.a, line_geometry.b, mouse_world);
@@ -210,7 +225,9 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent *event) {
                         line.flags |= ObjFlags::howered;
                         update_needed = true;
                     } else {
-                        line.flags &= ~ObjFlags::howered;
+                        line.flags &= ~(ObjFlags::howered | ObjFlags::a_endpoint_move_howered |
+                                        ObjFlags::b_endpoint_move_howered);
+
                         update_needed = true;
                     }
                 }
@@ -340,12 +357,15 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
 
         for (auto &line : m_model.lines) {
             if (line.flags & ObjFlags::moving) {
+                // End of line move
                 line.flags &= ~ObjFlags::moving;
                 line.l = line.shadow_l;
             } else if (line.flags & (ObjFlags::a_endpoint_move | ObjFlags::b_endpoint_move)) {
+                // Enf of line endpoint move
                 line.flags &= ~(ObjFlags::a_endpoint_move | ObjFlags::b_endpoint_move);
                 line.l = line.shadow_l;
             } else {
+                // Beginning of linne/endpoints move
                 auto &line_geometry = line.l;
 
                 // Move tool has different handling of lines and endpoints. For endpoints, Move
@@ -560,6 +580,16 @@ void CanvasWidget::render_lines(QPainter *painter, QPaintEvent *) {
             painter->restore();
         } else if (line_obj.flags & ObjFlags::howered) {
             draw_colored_line(painter, a, b, Qt::blue, thicker_line_width());
+        } else if (line_obj.flags &
+                   (ObjFlags::a_endpoint_move_howered | ObjFlags::b_endpoint_move_howered)) {
+            const auto Pink = QColor(255, 20, 147);
+            if (line_obj.flags & ObjFlags::a_endpoint_move_howered) {
+                // a endpoint however
+                draw_colored_point(painter, line_obj.l.a, Pink);
+            } else {
+                // b endpoint however
+                draw_colored_point(painter, line_obj.l.b, Pink);
+            }
         }
     }
 
@@ -585,10 +615,10 @@ Point CanvasWidget::screen_to_world(Point p) {
 }
 
 Line CanvasWidget::world_to_screen(Line p) {
-    return Line{.a = world_to_screen(p.a), .b = world_to_screen(p.b)};
+    return Line(world_to_screen(p.a), world_to_screen(p.b));
 }
 Line CanvasWidget::screen_to_world(Line p) {
-    return Line{.a = screen_to_world(p.a), .b = screen_to_world(p.b)};
+    return Line(screen_to_world(p.a), screen_to_world(p.b));
 }
 
 void CanvasWidget::mark_object_selected(const PointObj &o) { select_object_by_id_impl(o.id); }

@@ -10,7 +10,9 @@ enum {
     moving = 0x02,
     howered = 0x04,
     a_endpoint_move = 0x08,
-    b_endpoint_move = 0x10
+    b_endpoint_move = 0x10,
+    a_endpoint_move_howered = 0x20,
+    b_endpoint_move_howered = 0x40
 };
 };
 
@@ -37,6 +39,8 @@ struct PointObj {
 struct Line {
     Point a;
     Point b;
+    Line(Point a, Point b) : a(a), b(b) {}
+    Line() = default;
 
     std::tuple<Point, Point> endpoints() const { return {a, b}; }
 };
