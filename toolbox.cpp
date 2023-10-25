@@ -10,6 +10,22 @@
 #include <QToolButton>
 #include <QVBoxLayout>
 
+const auto selected_tool_color = QColor(141, 153, 147);
+
+void set_button_color(QToolButton &btn, QColor c1, QColor c2) {
+    auto p = btn.palette();
+    p.setBrush(QPalette::Base, c1);
+    p.setBrush(QPalette::Button, c2);
+    btn.setPalette(p);
+}
+
+std::tuple<QColor, QColor> get_button_color(QToolButton &btn) {
+    auto p = btn.palette();
+    auto c1 = p.brush(QPalette::Base);
+    auto c2 = p.brush(QPalette::Button);
+    return {c1.color(), c2.color()};
+}
+
 ToolBox::ToolBox(QWidget *parent)
     : QWidget(parent)
 
@@ -28,10 +44,14 @@ ToolBox::ToolBox(QWidget *parent)
                 for (auto t : m_tools) {
                     if (t != tool && t->isChecked()) {
                         t->setChecked(false);
+                        //                  set_button_color(*t, m_neutral_color1,
+                        //                  m_neutral_color2);
                     }
                 }
                 if (m_selected_tool != tool_id) {
                     m_selected_tool = tool_id;
+                    //                    set_button_color(*tool, selected_tool_color,
+                    //                    selected_tool_color);
                     emit selected_tool_changed(m_selected_tool);
                 }
             }
@@ -44,6 +64,10 @@ ToolBox::ToolBox(QWidget *parent)
     m_draw_line_tool = add_tool("L", Tool::draw_line);
     m_select_tool = add_tool("S", Tool::select);
     m_move_tool = add_tool("M", Tool::move);
+
+    auto [c1, c2] = get_button_color(*m_hand_tool);
+    m_neutral_color1 = c1;
+    m_neutral_color2 = c2;
 
     m_hand_tool->setChecked(true);
 

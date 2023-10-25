@@ -29,6 +29,8 @@ set(PROJECT_SOURCES
 	layers_window.cpp
 	v2.hpp
 	v2.cpp
+	MoveTool.hpp
+	MoveTool.cpp
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "MoveTool.hpp"
 #include "types.hpp"
 #include <QWidget>
 #include <memory>
@@ -55,7 +56,7 @@ inline void test() {
     cmds.push_back(std::move(move_cmd));
 }
 
-class CanvasWidget : public QWidget {
+class CanvasWidget : public QWidget, public IToolHost {
     Q_OBJECT
 
   public:
@@ -72,6 +73,10 @@ class CanvasWidget : public QWidget {
     void mouseReleaseEvent(QMouseEvent *event) override;
 
     void wheelEvent(QWheelEvent *event) override;
+
+  public: // IToolHost
+    virtual void ToolHost__update() override { update(); }
+    virtual void ToolHost__enable_mouse_tracking(bool v) override { setMouseTracking(v); }
 
   private:
     void render_background(QPainter *painter, QPaintEvent *);
@@ -123,4 +128,5 @@ class CanvasWidget : public QWidget {
     std::string m_hitting_line_id;
 
     Model m_model;
+    MoveTool m_move_tool;
 };

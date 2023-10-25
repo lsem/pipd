@@ -3,6 +3,7 @@
 #include "types.hpp"
 #include <QFrame>
 #include <vector>
+#include <tuple>
 
 class QPushButton;
 class QToolButton;
@@ -23,6 +24,8 @@ class ToolBox : public QWidget {
     void mouseReleaseEvent(QMouseEvent *event) override;
 
   private:
+    QColor m_neutral_color1;
+    QColor m_neutral_color2;    
     QToolButton *m_hand_tool;
     QToolButton *m_draw_point_tool;
     QToolButton *m_draw_line_tool;

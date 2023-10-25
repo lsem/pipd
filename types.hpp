@@ -1,10 +1,17 @@
 #pragma once
 #include <QDebug>
 #include <QPointF>
+#include <optional>
 #include <string>
 
 namespace ObjFlags {
-enum { selected = 0x01, moving = 0x02, howered = 0x04 };
+enum {
+    selected = 0x01,
+    moving = 0x02,
+    howered = 0x04,
+    a_endpoint_move = 0x08,
+    b_endpoint_move = 0x10
+};
 };
 
 enum class Tool { hand, select, draw_point, draw_line, move };
@@ -39,7 +46,15 @@ struct LineObj {
     Line shadow_l;
     std::string id;
     unsigned flags = 0;
+
+    // Line always refers to some endpoints, implicitly or explicitly created.
+    std::optional<std::string> endpoint_a_ref;
+    std::optional<std::string> endpoint_b_ref;
 };
+
+// What if line's own endpoint is rendered differently and handled differently? Meaning, that we can
+// move it but it does not have this sticky semantics? But anytime we can turn this endpoint into
+// separate Point with own ID.
 
 // What if we just create separate endpoints in the model and somehow connect them in the model?
 // BTW, how we can connect them?
@@ -50,7 +65,6 @@ struct LineObj {
 // It seems to be useful because we may want to denote a wall and only then draw it. We can also
 // want to slide this point along the line. Or, we may want to slide a wall using M tool and slide
 // two endpoints along the lines.
-
 
 // Defines by upper-left corner and width, height.
 struct Rect {

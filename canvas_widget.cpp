@@ -89,7 +89,7 @@ void draw_colored_point(QPainter *painter, Point p, QColor c, double size = 5.0)
 
 } // namespace
 
-CanvasWidget::CanvasWidget(QWidget *parent) : QWidget(parent) {
+CanvasWidget::CanvasWidget(QWidget *parent) : QWidget(parent), m_move_tool(*this, m_model) {
     // put few points for the test.
     // m_model.points.emplace_back(PointObj{{20, 20}, "1"});
     // m_model.points.emplace_back(PointObj{{100, 100}, "2"});
@@ -180,10 +180,19 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent *event) {
         for (auto &line : m_model.lines) {
             if (line.flags & ObjFlags::moving) {
                 update_needed = true;
-
                 line.shadow_l.a.x += sdx;
                 line.shadow_l.b.x += sdx;
                 line.shadow_l.a.y += sdy;
+                line.shadow_l.b.y += sdy;
+            } else if (line.flags & ObjFlags::a_endpoint_move) {
+                qDebug() << "A endpoint is being moved";
+                update_needed = true;
+                line.shadow_l.a.x += sdx;
+                line.shadow_l.a.y += sdy;
+            } else if (line.flags & ObjFlags::b_endpoint_move) {
+                qDebug() << "B endpoint is being moved";
+                update_needed = true;
+                line.shadow_l.b.x += sdx;
                 line.shadow_l.b.y += sdy;
             } else {
                 auto &line_geometry = line.l;
@@ -255,7 +264,10 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
             new_line.l.a = m_line_point_a;
             new_line.l.b = mouse_world;
             m_model.lines.emplace_back(new_line);
+            // m_model.points.emplace_back(new_line.l.a, new_line.id + "__A");
+            // m_model.points.emplace_back(new_line.l.b, new_line.id + "__B");
             m_draw_line_state = DrawLineState::waiting_point_a;
+
             setMouseTracking(false);
             update();
             break;
@@ -330,21 +342,27 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
             if (line.flags & ObjFlags::moving) {
                 line.flags &= ~ObjFlags::moving;
                 line.l = line.shadow_l;
+            } else if (line.flags & (ObjFlags::a_endpoint_move | ObjFlags::b_endpoint_move)) {
+                line.flags &= ~(ObjFlags::a_endpoint_move | ObjFlags::b_endpoint_move);
+                line.l = line.shadow_l;
             } else {
                 auto &line_geometry = line.l;
 
-                // Move tool has different handling of lines and endpoints. For endpoints, Move tool
-                // moves endpoints and lines follow them if they are associated with it. For line it
-                // translates the line as is.
+                // Move tool has different handling of lines and endpoints. For endpoints, Move
+                // tool moves endpoints and lines follow them if they are associated with it.
+                // For line it translates the line as is.
                 // TODO: in mouseMove handler, highlight current endpoints or line that. We can
-                // either repeat this logic or we can somehow delegate this into Move tool. What if
-                // move tool can handle events. class MoveTool { void on_mouse_move(); void
+                // either repeat this logic or we can somehow delegate this into Move tool. What
+                // if move tool can handle events. class MoveTool { void on_mouse_move(); void
                 // on_press(); void on_release(); void render_state(QPainter, Model) {} }
                 if (math::points_distance(line_geometry.a, mouse_world) < 10.0) {
-                    qDebug() << "around A endpoint";
-                    //
+                    qDebug() << "MOVE: around A endpoint";
+                    line.flags = ObjFlags::a_endpoint_move;
+                    line.shadow_l = line.l;
                 } else if (math::points_distance(line_geometry.b, mouse_world) < 10.0) {
-                    qDebug() << "around B endpoint";
+                    qDebug() << "MOVE: around B endpoint";
+                    line.flags = ObjFlags::b_endpoint_move;
+                    line.shadow_l = line.l;
                 } else {
                     qDebug() << "around line";
                     auto r =
@@ -482,7 +500,8 @@ void CanvasWidget::render_lines(QPainter *painter, QPaintEvent *) {
         // but this looks convinient at this modent.
         // TODO: optimize this loop if there is not moved shadows right now in the
         // EditorState. Like (if editorFlags & hasMovingShadows)
-        if (line_obj.flags & ObjFlags::moving) {
+        if (line_obj.flags &
+            (ObjFlags::moving | ObjFlags::a_endpoint_move | ObjFlags::b_endpoint_move)) {
             auto &shadow = line_obj.shadow_l;
             draw_colored_line(painter, shadow, QColor(80, 80, 80), thin_line_width());
             draw_colored_line(painter, Line{a, shadow.a}, QColor(200, 200, 200), thin_line_width());

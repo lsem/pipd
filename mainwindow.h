@@ -14,6 +14,10 @@ class CanvasWidget;
 class ToolBox;
 class LayersWindow;
 
+
+
+
+
 class MainWindow : public QMainWindow {
     Q_OBJECT
 

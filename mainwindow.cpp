@@ -38,3 +38,4 @@ MainWindow::MainWindow(QWidget *parent)
 MainWindow::~MainWindow() = default;
 
 void MainWindow::resizeEvent(QResizeEvent *event) { m_toolbox->move(width() - 100, 30); }
+
