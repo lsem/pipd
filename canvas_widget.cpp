@@ -11,6 +11,10 @@
 #include <vector>
 
 namespace {
+const auto Pink = QColor(255, 20, 147);
+const auto Blue = QColor(66, 135, 245);
+const auto HowerColor = Blue;
+
 std::string format_distance_display_text(double distance) {
     std::stringstream ss;
     ss << static_cast<int>(std::round(distance)) << "m";
@@ -207,6 +211,13 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent *event) {
                 line.shadow_l.b.x += sdx;
                 line.shadow_l.b.y += sdy;
             } else {
+                // Clear all hower-related flag to make transitions between howered object correct.
+                // E.g. when line is howered and then we hower endpoint line should lose its
+                // howerness.
+                line.flags &= ~(ObjFlags::howered | ObjFlags::a_endpoint_move_howered |
+                                ObjFlags::b_endpoint_move_howered);
+                update_needed = true;
+
                 auto &line_geometry = line.l;
                 if (math::points_distance(line_geometry.a, mouse_world) < 10.0) {
                     qDebug() << "MOVE: around A endpoint";
@@ -215,21 +226,15 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent *event) {
                 } else if (math::points_distance(line_geometry.b, mouse_world) < 10.0) {
                     qDebug() << "MOVE: around B endpoint";
                     line.flags |= ObjFlags::b_endpoint_move_howered;
-                    update_needed = true;
-                } else {
-                    auto r =
-                        math::closest_point_to_line(line_geometry.a, line_geometry.b, mouse_world);
-                    const double dist = len(v2{mouse_world, r});
-                    if (dist < 10) {
-                        qDebug() << "MOVE: around line " << line.id.c_str();
-                        line.flags |= ObjFlags::howered;
-                        update_needed = true;
-                    } else {
-                        line.flags &= ~(ObjFlags::howered | ObjFlags::a_endpoint_move_howered |
-                                        ObjFlags::b_endpoint_move_howered);
 
-                        update_needed = true;
-                    }
+                    update_needed = true;
+                } else if (auto dist = len(
+                               v2{mouse_world, math::closest_point_to_line(
+                                                   line_geometry.a, line_geometry.b, mouse_world)});
+                           dist < 10) {
+                    qDebug() << "MOVE: around line " << line.id.c_str();
+                    line.flags |= ObjFlags::howered;
+                    update_needed = true;
                 }
             }
         }
@@ -579,16 +584,16 @@ void CanvasWidget::render_lines(QPainter *painter, QPaintEvent *) {
                               format_distance_display_text(dist).c_str());
             painter->restore();
         } else if (line_obj.flags & ObjFlags::howered) {
-            draw_colored_line(painter, a, b, Qt::blue, thicker_line_width());
+            draw_colored_line(painter, a, b, HowerColor, thicker_line_width());
         } else if (line_obj.flags &
                    (ObjFlags::a_endpoint_move_howered | ObjFlags::b_endpoint_move_howered)) {
-            const auto Pink = QColor(255, 20, 147);
+
             if (line_obj.flags & ObjFlags::a_endpoint_move_howered) {
                 // a endpoint however
-                draw_colored_point(painter, line_obj.l.a, Pink);
+                draw_colored_point(painter, line_obj.l.a, HowerColor, 10.0);
             } else {
                 // b endpoint however
-                draw_colored_point(painter, line_obj.l.b, Pink);
+                draw_colored_point(painter, line_obj.l.b, HowerColor, 10.0);
             }
         }
     }
