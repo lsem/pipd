@@ -490,17 +490,6 @@ void CanvasWidget::render_debug_elements(QPainter *painter, QPaintEvent *) {
     for (auto &line_obj : m_model.lines) {
         auto [a, b] = line_obj.l.endpoints();
         double size = 20.0 / m_scale;
-
-        // auto [r1, r2, r3, r4] = line_bbox(line_obj.l, size);
-        // draw_colored_line(painter, r1, r2, QColor(100, 100, 100));
-        // draw_colored_line(painter, r2, r3, QColor(100, 100, 100));
-        // draw_colored_line(painter, r3, r4, QColor(100, 100, 100));
-        // draw_colored_line(painter, r4, r1, QColor(100, 100, 100));
-
-        // draw_colored_line(painter, a, r1, QColor(255, 0, 0));
-        // draw_colored_line(painter, a, r2, QColor(255, 255, 0));
-        // draw_colored_line(painter, b, r3, QColor(255, 0, 255));
-        // draw_colored_line(painter, b, r4, QColor(0, 255, 0));
     }
 
     for (auto p : m_projection_points) {
@@ -657,11 +646,3 @@ QTransform CanvasWidget::get_transformation_matrix() const {
     m.translate(-m_translate_x, -m_translate_y);
     return m;
 }
-
-// NOW:
-//     selected line has two handles. we can move point of one line wherever we want.
-//     but even more nemeficial is to create a point.
-//     we can also move line itself which will translate the line accordingly.
-//    Once we have this basic functionality implemented, we can try to draw something
-//    non-trivial. For this we will need to be able to set widths. We will also need to be able
-//    to resize things according to specified size. We will also nened to remove things.
