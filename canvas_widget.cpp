@@ -15,6 +15,8 @@ const auto Pink = QColor(255, 20, 147);
 const auto Blue = QColor(66, 135, 245);
 const auto HowerColor = Blue;
 
+const int RULER_WIDTH_PIXELS = 10;
+
 std::string format_distance_display_text(double distance) {
     std::stringstream ss;
     ss << static_cast<int>(std::round(distance)) << "m";
@@ -62,6 +64,16 @@ Line scale_line(Line l, double factor) {
     QPointF q2 = to_qpointf(l.b) * m;
     return Line{to_point(q1), to_point(q2)};
 }
+Line rotate_line(Line l, double angle_rad) {
+    v2 center = (l.a + l.b) / 2;
+    QTransform m;
+    m.translate(center.x, center.y);
+    m.rotateRadians(angle_rad);
+    m.translate(-center.x, -center.y);
+    QPointF q1 = to_qpointf(l.a) * m;
+    QPointF q2 = to_qpointf(l.b) * m;
+    return Line{to_point(q1), to_point(q2)};
+}
 
 void draw_colored_line(QPainter *painter, Point p1, Point p2, QColor c, double width = 1.0) {
     QPen pen;
@@ -86,7 +98,7 @@ void draw_colored_line(QPainter *painter, Line l, QColor c, double width = 1.0) 
 void draw_dashed_line(QPainter *painter, Point p1, Point p2, QColor c, double width = 1.0) {
     QPen pen;
     pen.setColor(c);
-    pen.setStyle(Qt::DashDotDotLine);
+    pen.setStyle(Qt::DashLine);
     pen.setWidthF(width);
     painter->setPen(pen);
     painter->drawLine(to_qpointf(p1), to_qpointf(p2));
@@ -123,6 +135,9 @@ void CanvasWidget::select_tool(Tool tool) {
     } else {
         setMouseTracking(false);
     }
+
+    // Amount of rendering can depend on a tool so after activation update needed.
+    update();
 }
 
 void CanvasWidget::paintEvent(QPaintEvent *event) /*override*/ {
@@ -138,6 +153,12 @@ void CanvasWidget::paintEvent(QPaintEvent *event) /*override*/ {
     render_lines(&painter, event);
     render_handles(&painter, event);
     render_debug_elements(&painter, event);
+
+    if (m_selected_tool == Tool::guide) {
+        render_rulers(&painter, event);
+    }
+
+    render_guides(&painter, event);
 
     painter.end();
 }
@@ -243,6 +264,32 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent *event) {
 
         break;
     }
+    case Tool::guide: {
+        qDebug() << "GUIDE: MOVE: " << x << ", " << y;
+
+        // How we are supposed to handle mouse move for guide?
+        // guide is always sliding along perpendicular line to the origin (anchor) line
+        if (!m_guide_tool_state.guide_active) {
+            return;
+        }
+
+        // Create a line of width 1.0 in a world, just for the sake of angle.
+        auto &anchor_line = m_guide_tool_state.anchor_line;
+        v2 a{anchor_line.a, anchor_line.b};
+
+        Point p1{mouse_world.x - 0.5, mouse_world.y};
+        Point p2{mouse_world.x + 0.6, mouse_world.y};
+
+        auto alpha = math::angle_between_vectors(a, v2{1.0, 0.0});
+
+        auto l1 = scale_line(Line(p1, p2), len(v2(width(), height())));
+        l1 = rotate_line(l1, -alpha);
+
+        m_guide_tool_state.guide_line = l1;
+
+        update();
+        break;
+    }
     default:
         break;
     }
@@ -278,7 +325,7 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
         update();
         break;
     }
-    case Tool::draw_line: {
+    case Tool::draw_line:
         if (m_draw_line_state == DrawLineState::point_a_placed) {
             qDebug() << "point A was placed";
             LineObj new_line;
@@ -405,11 +452,69 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
 
         break;
     }
+    case Tool::guide: {
+        // guide starts from somewhere and stops somewhere. Orientation depends on baseline where it
+        // started from. e.g. if we started from ruller/left side then we are going to create
+        // vertical line. if we started from another line/edge, then angle will ba taken from there.
+        //
+        // so check if we have some line/edge/anthing that we can take angle from.
+
+        // FIXME: do it more selectively
+        setMouseTracking(true);
+
+        // Existing lines
+        for (auto &line : m_model.lines) {
+            auto &line_geometry = line.l;
+            auto r = math::closest_point_to_line(line_geometry.a, line_geometry.b, mouse_world);
+            const double dist = len(v2{mouse_world, r});
+            if (dist < 10) {
+                qDebug() << "GUIDE: hit into line " << line.id.c_str();
+                m_guide_tool_state.guide_active = true;
+                m_guide_tool_state.anchor_line = line_geometry;
+                m_guide_tool_state.guide_line = m_guide_tool_state.anchor_line;
+
+                update();
+                return;
+            }
+        }
+
+        // Rulers
+        if (mouse_screen.x > (width() - RULER_WIDTH_PIXELS)) {
+            qDebug() << "On vertical rule (right)";
+            m_guide_tool_state.guide_active = true;
+            m_guide_tool_state.anchor_line =
+                Line(Point{width_f(), 0}, Point{width_f(), height_f()});
+            m_guide_tool_state.guide_line = m_guide_tool_state.anchor_line;
+            update();
+        } else if (mouse_screen.x < RULER_WIDTH_PIXELS) {
+            qDebug() << "On vertical rule (left)";
+            m_guide_tool_state.guide_active = true;
+            m_guide_tool_state.anchor_line = Line(Point{0, 0}, Point{0, height_f()});
+            m_guide_tool_state.guide_line = m_guide_tool_state.anchor_line;
+            update();
+        } else if (mouse_screen.y > (height() - RULER_WIDTH_PIXELS)) {
+            qDebug() << "On horizontal rule (bottom)";
+            m_guide_tool_state.guide_active = true;
+            m_guide_tool_state.anchor_line =
+                Line(Point{0, height_f()}, Point{width_f(), height_f()});
+            m_guide_tool_state.guide_line = m_guide_tool_state.anchor_line;
+            update();
+        } else if (mouse_screen.y < RULER_WIDTH_PIXELS) {
+            qDebug() << "On horizontal rule (top)";
+            m_guide_tool_state.guide_active = true;
+            m_guide_tool_state.anchor_line = Line(Point{0, 0}, Point{width_f(), 0});
+            m_guide_tool_state.guide_line = m_guide_tool_state.anchor_line;
+            update();
+        }
+    }
+
+    break;
+
     default:
         break;
     }
-    }
 }
+
 void CanvasWidget::mouseReleaseEvent(QMouseEvent *event) {
     switch (m_selected_tool) {
     case Tool::draw_point: {
@@ -424,6 +529,14 @@ void CanvasWidget::mouseReleaseEvent(QMouseEvent *event) {
     }
     case Tool::move: {
         break;
+    }
+    case Tool::guide: {
+        qDebug() << "GUIDE: RELEASE";
+        if (m_guide_tool_state.guide_active) {
+            m_guide_tool_state.guide_active = false;
+            m_model.guides.emplace_back(GuideObj{m_guide_tool_state.guide_line});
+            update();
+        }
     }
     default: {
         break;
@@ -502,6 +615,30 @@ void CanvasWidget::render_debug_elements(QPainter *painter, QPaintEvent *) {
         if (it != m_model.lines.end()) {
             draw_colored_line(painter, it->l.a, it->l.b, QColor(255, 0, 0));
         }
+    }
+}
+
+void CanvasWidget::render_rulers(QPainter *painter, QPaintEvent *) {
+    draw_colored_line(painter, Point{RULER_WIDTH_PIXELS, 0},
+                      Point{RULER_WIDTH_PIXELS, (double)height()}, QColor(100, 100, 100));
+    draw_colored_line(painter, Point{(double)width() - RULER_WIDTH_PIXELS, 0},
+                      Point{(double)width() - RULER_WIDTH_PIXELS, (double)height()},
+                      QColor(100, 100, 100));
+    draw_colored_line(painter, Point{0, RULER_WIDTH_PIXELS},
+                      Point{(double)width(), RULER_WIDTH_PIXELS}, QColor(100, 100, 100));
+    draw_colored_line(painter, Point{0, (double)height() - RULER_WIDTH_PIXELS},
+                      Point{(double)width(), (double)height() - RULER_WIDTH_PIXELS},
+                      QColor(100, 100, 100));
+}
+
+void CanvasWidget::render_guides(QPainter *painter, QPaintEvent *) {
+    // Render currently active guide
+    if (m_selected_tool == Tool::guide && m_guide_tool_state.guide_active) {
+        draw_dashed_line(painter, m_guide_tool_state.guide_line, Blue, thicker_line_width());
+    }
+    // Render already placed/finalized guides
+    for (auto &guide : m_model.guides) {
+        draw_dashed_line(painter, guide.line, Blue, thicker_line_width());
     }
 }
 

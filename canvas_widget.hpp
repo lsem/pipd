@@ -83,6 +83,8 @@ class CanvasWidget : public QWidget, public IToolHost {
     void render_handles(QPainter *painter, QPaintEvent *);
     void render_lines(QPainter *painter, QPaintEvent *);
     void render_debug_elements(QPainter *painter, QPaintEvent *);
+    void render_rulers(QPainter *painter, QPaintEvent *);
+    void render_guides(QPainter *painter, QPaintEvent *);
 
     double scaled(double x) const { return x / m_scale; }
     double thin_line_width() const { return scaled(1.0); }
@@ -104,6 +106,9 @@ class CanvasWidget : public QWidget, public IToolHost {
     bool is_object_selected(const LineObj &o);
 
     QTransform get_transformation_matrix() const;
+
+    double width_f() const { return static_cast<double>(width()); }
+    double height_f() const { return static_cast<double>(height()); }
 
   private:
     CanvasState m_state = CanvasState::idle;
@@ -129,4 +134,10 @@ class CanvasWidget : public QWidget, public IToolHost {
 
     Model m_model;
     MoveTool m_move_tool;
+
+    struct {
+        bool guide_active = false; // whether guide is current being displayed
+        Line anchor_line;          // the line from which a guide originated
+        Line guide_line;           // current position of a guide
+    } m_guide_tool_state;
 };

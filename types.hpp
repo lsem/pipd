@@ -16,7 +16,7 @@ enum {
 };
 };
 
-enum class Tool { hand, select, draw_point, draw_line, move };
+enum class Tool { hand, select, draw_point, draw_line, move, guide };
 
 QDebug &operator<<(QDebug &os, Tool t);
 
@@ -44,6 +44,8 @@ struct Line {
 
     std::tuple<Point, Point> endpoints() const { return {a, b}; }
 };
+
+QDebug &operator<<(QDebug &os, Line l);
 
 struct LineObj {
     Line l;
@@ -81,7 +83,12 @@ struct Rect {
     double height;
 };
 
+struct GuideObj {
+    Line line;
+};
+
 struct Model {
     std::vector<PointObj> points;
     std::vector<LineObj> lines;
+    std::vector<GuideObj> guides;
 };

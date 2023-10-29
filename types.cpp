@@ -17,6 +17,9 @@ QDebug &operator<<(QDebug &os, Tool t) {
     case Tool::move:
         os << "move";
         break;
+    case Tool::guide:
+        os << "guide";
+        break;
     default:
         os << "<tool:unknown>";
         break;
@@ -26,5 +29,10 @@ QDebug &operator<<(QDebug &os, Tool t) {
 
 QDebug &operator<<(QDebug &os, Point p) {
     os << p.x << ", " << p.y;
+    return os;
+}
+
+QDebug &operator<<(QDebug &os, Line l) {
+    os << "Line(" << l.a << ", " << l.b << ")";
     return os;
 }

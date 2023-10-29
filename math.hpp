@@ -39,7 +39,11 @@ inline bool rect_point_hit_test(std::array<Point, 4> rect, Point p) {
 }
 
 inline double angle_between_vectors(::v2 v1, ::v2 v2) {
-    return std::atan2(v2.y, v2.x) - atan2(v1.y, v1.x);
+    double theta = std::atan2(cross2d(v1, v2), dot(v1, v2));
+    if (theta < 0) {
+        theta += 2 * M_PI;
+    }
+    return theta;
 }
 
 } // namespace math
