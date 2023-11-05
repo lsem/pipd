@@ -98,6 +98,10 @@ struct Rect {
         }
     }
 
+    static Rect from_center_and_dimensions(Point center, double width, double height) {
+        return Rect{center.x - width / 2.0, center.y - height / 2.0, width, height};
+    }
+
     Point upper_left_corner() const { return {x, y}; }
     Point center() const { return {x + width / 2, y + height / 2}; }
 
@@ -108,11 +112,16 @@ struct Rect {
 };
 
 struct GuideObj {
-    Line line;
+    Line line; // shouln't this be called geometry?
+};
+
+struct RectObj {
+    Rect rect; // shouln't this be called geometry?
 };
 
 struct Model {
     std::vector<PointObj> points;
     std::vector<LineObj> lines;
     std::vector<GuideObj> guides;
+    std::vector<RectObj> rects;
 };

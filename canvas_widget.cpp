@@ -552,11 +552,18 @@ void CanvasWidget::mouseReleaseEvent(QMouseEvent *event) {
     }
     case Tool::guide: {
         qDebug() << "GUIDE: RELEASE";
-        if (m_guide_tool_state.guide_active) {
-            m_guide_tool_state.guide_active = false;
+        if (std ::exchange(m_guide_tool_state.guide_active, false)) {
             m_model.guides.emplace_back(GuideObj{m_guide_tool_state.guide_line});
             update();
         }
+    }
+    case Tool::rectangle: {
+        if (std::exchange(m_rect_tool_state.rect_active, false)) {
+            m_model.rects.emplace_back(
+                RectObj{Rect::from_two_points(m_rect_tool_state.p1, m_rect_tool_state.p2)});
+            update();
+        }
+        break;
     }
     default: {
         break;
@@ -663,10 +670,47 @@ void CanvasWidget::render_guides(QPainter *painter, QPaintEvent *) {
 }
 void CanvasWidget::render_rects(QPainter *painter, QPaintEvent *) {
     if (m_rect_tool_state.rect_active) {
-        draw_rect(painter, Rect::from_two_points(m_rect_tool_state.p1, m_rect_tool_state.p2),
-                  QColor(100, 100, 100));
-        // Also, draw dimensions
-        // ..
+        // Render rect currently being drawed
+        auto rect = Rect::from_two_points(m_rect_tool_state.p1, m_rect_tool_state.p2);
+        draw_rect(painter, rect, QColor(100, 100, 100));
+        // Also, draw dimensions of our rect. For this we find positions first.
+        qDebug() << "RENDER: RECT: " << rect.width << "x" << rect.height;
+        v2 top_left{rect.x, rect.y};
+        v2 top_right{rect.x + rect.width, rect.y};
+        v2 bottom_left{rect.x, rect.y + rect.height};
+        v2 width_label_pos = (top_left + top_right) / 2.0;
+        v2 height_label_pos = (top_left + bottom_left) / 2.0;
+
+        // move width frame up and heught frame to the left
+        width_label_pos.y -= 15.0;
+        height_label_pos.x -= 15.0;
+
+        auto width_label_frame = Rect::from_center_and_dimensions(width_label_pos, 100, 50);
+        //        draw_rect(painter, width_label_frame, QColor(255, 0, 0));
+        auto height_label_frame = Rect::from_center_and_dimensions(height_label_pos, 100, 50);
+        //        draw_rect(painter, height_label_frame, QColor(0, 255, 0));
+
+        // rect width label
+        painter->save();
+        painter->setPen(QColor(100, 100, 100));
+        painter->drawText(to_qrectf(width_label_frame), Qt::AlignCenter | Qt::AlignVCenter,
+                          format_distance_display_text(len(v2(top_left, top_right))).c_str());
+        painter->restore();
+
+        // rect height label
+        painter->save();
+        painter->setPen(QColor(100, 100, 100));
+        painter->translate(to_qpointf(height_label_frame.center()));
+        painter->rotate(-90.0);
+        painter->translate(-height_label_frame.center());
+        painter->drawText(to_qrectf(height_label_frame), Qt::AlignCenter | Qt::AlignVCenter,
+                          format_distance_display_text(len(v2(top_left, bottom_left))).c_str());
+        painter->restore();
+    }
+
+    for (auto &rectObj : m_model.rects) {
+        auto &geometry = rectObj.rect;
+        draw_rect(painter, geometry, QColor(100, 100, 100));
     }
 }
 
