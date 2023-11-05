@@ -129,7 +129,7 @@ void CanvasWidget::select_tool(Tool tool) {
     qDebug() << "tool selected: " << tool;
     m_selected_tool = tool;
 
-    // By default only select tool has tracking on.
+    // By default only select tool has tracking one
     if (m_selected_tool == Tool::select || m_selected_tool == Tool::move) {
         setMouseTracking(true);
     } else {
@@ -159,6 +159,8 @@ void CanvasWidget::paintEvent(QPaintEvent *event) /*override*/ {
     }
 
     render_guides(&painter, event);
+
+    render_rects(&painter, event);
 
     painter.end();
 }
@@ -282,12 +284,25 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent *event) {
 
         auto alpha = math::angle_between_vectors(a, v2{1.0, 0.0});
 
-        auto l1 = scale_line(Line(p1, p2), len(v2(width(), height())));
+        auto l1 = scale_line(Line(p1, p2), 100'000);
         l1 = rotate_line(l1, -alpha);
 
         m_guide_tool_state.guide_line = l1;
 
         update();
+        break;
+    }
+    case Tool::rectangle: {
+        qDebug() << "MMOVE: RECT: " << x << ", " << y;
+        // draw rectable from start point to current point
+        if (m_rect_tool_state.rect_active) {
+            m_rect_tool_state.p2 = mouse_world;
+            update();
+        } else {
+            // .. handling hovers and snapping
+        }
+        // m_rect_tool_state.start_pos = mouse_world;
+        // m_rect_tool_state.rect_active = true;
         break;
     }
     default:
@@ -506,9 +521,14 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
             m_guide_tool_state.guide_line = m_guide_tool_state.anchor_line;
             update();
         }
+        break;
     }
-
-    break;
+    case Tool::rectangle: {
+        qDebug() << "PRESS: RECT: " << x << ", " << y;
+        m_rect_tool_state.p1 = mouse_world;
+        m_rect_tool_state.rect_active = true;
+        break;
+    }
 
     default:
         break;
@@ -638,7 +658,15 @@ void CanvasWidget::render_guides(QPainter *painter, QPaintEvent *) {
     }
     // Render already placed/finalized guides
     for (auto &guide : m_model.guides) {
-        draw_dashed_line(painter, guide.line, Blue, thicker_line_width());
+        draw_dashed_line(painter, scale_line(guide.line, 1 / m_scale), Blue, thicker_line_width());
+    }
+}
+void CanvasWidget::render_rects(QPainter *painter, QPaintEvent *) {
+    if (m_rect_tool_state.rect_active) {
+        draw_rect(painter, Rect::from_two_points(m_rect_tool_state.p1, m_rect_tool_state.p2),
+                  QColor(100, 100, 100));
+        // Also, draw dimensions
+        // ..
     }
 }
 

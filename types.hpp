@@ -16,7 +16,7 @@ enum {
 };
 };
 
-enum class Tool { hand, select, draw_point, draw_line, move, guide };
+enum class Tool { hand, select, draw_point, draw_line, move, guide, rectangle };
 
 QDebug &operator<<(QDebug &os, Tool t);
 
@@ -74,11 +74,35 @@ struct LineObj {
 
 // Defines by upper-left corner and width, height.
 struct Rect {
-    double x;
-    double y;
+
+    // Constructs from any two points.
+    static Rect from_two_points(Point p1, Point p2) {
+        // we need to find top left from any two points.
+        if (p1.x < p2.x) {
+            if (p1.x < p2.y) {
+                // p1 is topleft.
+                return Rect{p1.x, p1.y, p2.x - p1.x, p2.y - p1.y};
+            } else {
+                // p1 is bottom left.
+                return Rect{p1.x, p2.y, p2.x - p1.x, p1.y - p2.y};
+            }
+        } else {
+            // p2.x <= p1.x
+            if (p2.y <= p1.y) {
+                // p2 is topleft.
+                return Rect{p2.x, p2.y, p1.x - p2.x, p1.y - p2.y};
+            } else {
+                // p2 is bottom left
+                return Rect{p2.x, p1.y, p1.x - p2.x, p2.y - p1.y};
+            }
+        }
+    }
 
     Point upper_left_corner() const { return {x, y}; }
     Point center() const { return {x + width / 2, y + height / 2}; }
+
+    double x;
+    double y;
     double width;
     double height;
 };

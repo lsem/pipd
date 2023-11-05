@@ -85,6 +85,7 @@ class CanvasWidget : public QWidget, public IToolHost {
     void render_debug_elements(QPainter *painter, QPaintEvent *);
     void render_rulers(QPainter *painter, QPaintEvent *);
     void render_guides(QPainter *painter, QPaintEvent *);
+    void render_rects(QPainter *painter, QPaintEvent *);
 
     double scaled(double x) const { return x / m_scale; }
     double thin_line_width() const { return scaled(1.0); }
@@ -140,4 +141,10 @@ class CanvasWidget : public QWidget, public IToolHost {
         Line anchor_line;          // the line from which a guide originated
         Line guide_line;           // current position of a guide
     } m_guide_tool_state;
+
+    struct {
+        bool rect_active = false;
+        Point p1;
+        Point p2;
+    } m_rect_tool_state;
 };

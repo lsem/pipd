@@ -20,6 +20,9 @@ QDebug &operator<<(QDebug &os, Tool t) {
     case Tool::guide:
         os << "guide";
         break;
+    case Tool::rectangle:
+        os << "rectangle";
+        break;
     default:
         os << "<tool:unknown>";
         break;
