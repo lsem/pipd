@@ -261,6 +261,39 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent *event) {
                 }
             }
         }
+
+        for (auto &rect : m_model.rects) {
+            auto flags_before = rect.flags;
+            // TODO: Current Move tool is basically resize tool. Instead, we should have separate
+            // tool that would move entire object: line or rect. and separate tool for resize: which
+            // allows to change only size of an on object.
+
+            auto point_howers_line = [](Point p, Line l) {
+                return len(v2{p, math::closest_point_to_line(l.a, l.b, p)}) < 10;
+            };
+
+            // before testing new hovers, first clean all existing hovers to handle when line is no
+            // longer hovered
+            rect.flags &=
+                ~(ObjFlags::top_rect_line_move_howered | ObjFlags::bottom_rect_line_move_howered |
+                  ObjFlags::left_rect_line_move_howered | ObjFlags::right_rect_line_move_howered);
+
+            auto &geometry = rect.rect;
+            if (point_howers_line(mouse_world, geometry.top_line())) {
+                rect.flags |= ObjFlags::top_rect_line_move_howered;
+            } else if (point_howers_line(mouse_world, geometry.bottom_line())) {
+                rect.flags |= ObjFlags::bottom_rect_line_move_howered;
+            } else if (point_howers_line(mouse_world, geometry.left_line())) {
+                rect.flags |= ObjFlags::left_rect_line_move_howered;
+            } else if (point_howers_line(mouse_world, geometry.right_line())) {
+                rect.flags |= ObjFlags::right_rect_line_move_howered;
+            }
+
+            if (flags_before != rect.flags) {
+                update_needed = true;
+            }
+        }
+
         if (update_needed)
             update();
 
@@ -411,16 +444,17 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
         break;
     }
     case Tool::move: {
-        // By default qt enables tracking only while button is pressed but we want to have object
-        // moved without any press.
+        // By default qt enables tracking only while button is pressed but we want to have
+        // object moved without any press.
         setMouseTracking(true);
         qDebug() << "mousePress: move tool selected";
         // Selecto tool works only on objects that are currently under cursor.
-        // so we first need to find what object is under cursor. We expect there could be only one
-        // object under cursor. If this is not possible then we can use preselected tool with Select
-        // tool and by doing this at the moment we try to apply Move tool, we should already have
-        // object selected so we can ignore all objects which are not in selected state. But for for
-        // now, for the sake of simplicity, we can just consider everything and see how it works.
+        // so we first need to find what object is under cursor. We expect there could be only
+        // one object under cursor. If this is not possible then we can use preselected tool
+        // with Select tool and by doing this at the moment we try to apply Move tool, we should
+        // already have object selected so we can ignore all objects which are not in selected
+        // state. But for for now, for the sake of simplicity, we can just consider everything
+        // and see how it works.
 
         for (auto &line : m_model.lines) {
             if (line.flags & ObjFlags::moving) {
@@ -463,14 +497,19 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
                 }
             }
             update();
+        } // lines move
+
+        for (auto &line : m_model.rects) {
+            //
         }
 
         break;
     }
     case Tool::guide: {
-        // guide starts from somewhere and stops somewhere. Orientation depends on baseline where it
-        // started from. e.g. if we started from ruller/left side then we are going to create
-        // vertical line. if we started from another line/edge, then angle will ba taken from there.
+        // guide starts from somewhere and stops somewhere. Orientation depends on baseline
+        // where it started from. e.g. if we started from ruller/left side then we are going to
+        // create vertical line. if we started from another line/edge, then angle will ba taken
+        // from there.
         //
         // so check if we have some line/edge/anthing that we can take angle from.
 
@@ -690,11 +729,14 @@ void CanvasWidget::render_rects(QPainter *painter, QPaintEvent *) {
         auto height_label_frame = Rect::from_center_and_dimensions(height_label_pos, 100, 50);
         //        draw_rect(painter, height_label_frame, QColor(0, 255, 0));
 
+        auto width_dist = len(v2(top_left, top_right));
+        auto height_dist = len(v2(top_left, bottom_left));
+
         // rect width label
         painter->save();
         painter->setPen(QColor(100, 100, 100));
         painter->drawText(to_qrectf(width_label_frame), Qt::AlignCenter | Qt::AlignVCenter,
-                          format_distance_display_text(len(v2(top_left, top_right))).c_str());
+                          format_distance_display_text(width_dist).c_str());
         painter->restore();
 
         // rect height label
@@ -704,13 +746,30 @@ void CanvasWidget::render_rects(QPainter *painter, QPaintEvent *) {
         painter->rotate(-90.0);
         painter->translate(-height_label_frame.center());
         painter->drawText(to_qrectf(height_label_frame), Qt::AlignCenter | Qt::AlignVCenter,
-                          format_distance_display_text(len(v2(top_left, bottom_left))).c_str());
+                          format_distance_display_text(height_dist).c_str());
         painter->restore();
     }
 
     for (auto &rectObj : m_model.rects) {
         auto &geometry = rectObj.rect;
-        draw_rect(painter, geometry, QColor(100, 100, 100));
+        draw_rect(painter, geometry, QColor(0, 0, 0));
+
+        const auto flags = rectObj.flags;
+        if (flags & ObjFlags::top_rect_line_move_howered) {
+            draw_colored_line(painter, geometry.top_line(), HowerColor, thicker_line_width());
+        } else if (flags & ObjFlags::bottom_rect_line_move_howered) {
+            draw_colored_line(painter, geometry.bottom_line(), HowerColor, thicker_line_width());
+        } else if (flags & ObjFlags::left_rect_line_move_howered) {
+            draw_colored_line(painter, geometry.left_line(), HowerColor, thicker_line_width());
+        } else if (flags & ObjFlags::right_rect_line_move_howered) {
+            draw_colored_line(painter, geometry.right_line(), HowerColor, thicker_line_width());
+        }
+
+        // TODO: handle more flags.
+        // top_rect_line_move = 0x100,
+        // bottom_rect_line_move = 0x400,
+        // left_rect_line_move = 0x1000,
+        // right_rect_line_move = 0x4000,
     }
 }
 

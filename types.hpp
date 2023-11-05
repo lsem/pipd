@@ -9,12 +9,24 @@ enum {
     selected = 0x01,
     moving = 0x02,
     howered = 0x04,
+
+    // line handling
     a_endpoint_move = 0x08,
     b_endpoint_move = 0x10,
     a_endpoint_move_howered = 0x20,
-    b_endpoint_move_howered = 0x40
+    b_endpoint_move_howered = 0x40,
+
+    // rect handling
+    top_rect_line_move_howered = 0x80,
+    top_rect_line_move = 0x100,
+    bottom_rect_line_move_howered = 0x200,
+    bottom_rect_line_move = 0x400,
+    left_rect_line_move_howered = 0x800,
+    left_rect_line_move = 0x1000,
+    right_rect_line_move_howered = 0x2000,
+    right_rect_line_move = 0x4000,
 };
-};
+}
 
 enum class Tool { hand, select, draw_point, draw_line, move, guide, rectangle };
 
@@ -105,6 +117,11 @@ struct Rect {
     Point upper_left_corner() const { return {x, y}; }
     Point center() const { return {x + width / 2, y + height / 2}; }
 
+    Line top_line() const { return Line(Point(x, y), Point(x + width, y)); }
+    Line bottom_line() const { return Line(Point(x, y + height), Point(x + width, y + height)); }
+    Line left_line() const { return Line(Point(x, y), Point(x, y + height)); }
+    Line right_line() const { return Line(Point(x + width, y), Point(x + width, y + height)); }
+
     double x;
     double y;
     double width;
@@ -117,6 +134,8 @@ struct GuideObj {
 
 struct RectObj {
     Rect rect; // shouln't this be called geometry?
+
+    unsigned flags = 0;
 };
 
 struct Model {
