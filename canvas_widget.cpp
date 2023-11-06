@@ -13,6 +13,9 @@
 namespace {
 const auto Pink = QColor(255, 20, 147);
 const auto Blue = QColor(66, 135, 245);
+const auto Grey = QColor(100, 100, 100);
+const auto LightGrey = QColor(200, 200, 200);
+
 const auto HowerColor = Blue;
 
 const int RULER_WIDTH_PIXELS = 10;
@@ -36,6 +39,10 @@ bool in_rect(int x, int y, Rect r) {
 }
 
 bool in_rect(Point p, Rect r) { return in_rect(p.x, p.y, r); }
+
+bool point_howers_line(Point p, Line l) {
+    return len(v2{p, math::closest_point_to_line(l.a, l.b, p)}) < 10;
+};
 
 const double SELECT_TOOL_HIT_BBOX = 20.0;
 
@@ -268,30 +275,38 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent *event) {
             // tool that would move entire object: line or rect. and separate tool for resize: which
             // allows to change only size of an on object.
 
-            auto point_howers_line = [](Point p, Line l) {
-                return len(v2{p, math::closest_point_to_line(l.a, l.b, p)}) < 10;
-            };
+            if (rect.flags & ObjFlags::top_rect_line_move) {
+                // TODO: here we should have a command instead of direct model manipulation.
+                rect.shadow_rect.move_top_line(sdy);
+            } else if (rect.flags & ObjFlags::bottom_rect_line_move) {
+                rect.shadow_rect.move_bottom_line(sdy);
+            } else if (rect.flags & ObjFlags::left_rect_line_move) {
+                rect.shadow_rect.move_left_line(sdx);
+            } else if (rect.flags & ObjFlags::right_rect_line_move) {
+                rect.shadow_rect.move_right_line(sdx);
+            } else {
 
-            // before testing new hovers, first clean all existing hovers to handle when line is no
-            // longer hovered
-            rect.flags &=
-                ~(ObjFlags::top_rect_line_move_howered | ObjFlags::bottom_rect_line_move_howered |
-                  ObjFlags::left_rect_line_move_howered | ObjFlags::right_rect_line_move_howered);
+                // before testing new hovers, first clean all existing hovers to handle when line is
+                // no longer hovered
+                rect.flags &= ~(
+                    ObjFlags::top_rect_line_move_howered | ObjFlags::bottom_rect_line_move_howered |
+                    ObjFlags::left_rect_line_move_howered | ObjFlags::right_rect_line_move_howered);
 
-            auto &geometry = rect.rect;
-            if (point_howers_line(mouse_world, geometry.top_line())) {
-                rect.flags |= ObjFlags::top_rect_line_move_howered;
-            } else if (point_howers_line(mouse_world, geometry.bottom_line())) {
-                rect.flags |= ObjFlags::bottom_rect_line_move_howered;
-            } else if (point_howers_line(mouse_world, geometry.left_line())) {
-                rect.flags |= ObjFlags::left_rect_line_move_howered;
-            } else if (point_howers_line(mouse_world, geometry.right_line())) {
-                rect.flags |= ObjFlags::right_rect_line_move_howered;
+                auto &geometry = rect.rect;
+                if (point_howers_line(mouse_world, geometry.top_line())) {
+                    rect.flags |= ObjFlags::top_rect_line_move_howered;
+                } else if (point_howers_line(mouse_world, geometry.bottom_line())) {
+                    rect.flags |= ObjFlags::bottom_rect_line_move_howered;
+                } else if (point_howers_line(mouse_world, geometry.left_line())) {
+                    rect.flags |= ObjFlags::left_rect_line_move_howered;
+                } else if (point_howers_line(mouse_world, geometry.right_line())) {
+                    rect.flags |= ObjFlags::right_rect_line_move_howered;
+                }
             }
 
-            if (flags_before != rect.flags) {
-                update_needed = true;
-            }
+            //            if (flags_before != rect.flags) {
+            update_needed = true;
+            //            }
         }
 
         if (update_needed)
@@ -499,9 +514,38 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
             update();
         } // lines move
 
-        for (auto &line : m_model.rects) {
-            //
+        for (auto &rect : m_model.rects) {
+            auto &geometry = rect.rect;
+
+            if (rect.flags & ObjFlags::top_rect_line_move) {
+                rect.rect = rect.shadow_rect;
+                rect.flags &= ~ObjFlags::top_rect_line_move;
+            } else if (rect.flags & ObjFlags::bottom_rect_line_move) {
+                rect.rect = rect.shadow_rect;
+                rect.flags &= ~ObjFlags::bottom_rect_line_move;
+            } else if (rect.flags & ObjFlags::left_rect_line_move) {
+                rect.rect = rect.shadow_rect;
+                rect.flags &= ~ObjFlags::left_rect_line_move;
+            } else if (rect.flags & ObjFlags::right_rect_line_move) {
+                rect.rect = rect.shadow_rect;
+                rect.flags &= ~ObjFlags::right_rect_line_move;
+            } else {
+                if (point_howers_line(mouse_world, geometry.top_line())) {
+                    rect.flags |= ObjFlags::top_rect_line_move;
+                    rect.shadow_rect = rect.rect;
+                } else if (point_howers_line(mouse_world, geometry.bottom_line())) {
+                    rect.flags |= ObjFlags::bottom_rect_line_move;
+                    rect.shadow_rect = rect.rect;
+                } else if (point_howers_line(mouse_world, geometry.left_line())) {
+                    rect.flags = ObjFlags::left_rect_line_move;
+                    rect.shadow_rect = rect.rect;
+                } else if (point_howers_line(mouse_world, geometry.right_line())) {
+                    rect.flags = ObjFlags::right_rect_line_move;
+                    rect.shadow_rect = rect.rect;
+                }
+            }
         }
+        update(); // TODO: check if any flag changed.
 
         break;
     }
@@ -763,6 +807,11 @@ void CanvasWidget::render_rects(QPainter *painter, QPaintEvent *) {
             draw_colored_line(painter, geometry.left_line(), HowerColor, thicker_line_width());
         } else if (flags & ObjFlags::right_rect_line_move_howered) {
             draw_colored_line(painter, geometry.right_line(), HowerColor, thicker_line_width());
+        }
+
+        if (flags & (ObjFlags::top_rect_line_move | ObjFlags::bottom_rect_line_move |
+                     ObjFlags::left_rect_line_move | ObjFlags::right_rect_line_move)) {
+            draw_rect(painter, rectObj.shadow_rect, LightGrey);
         }
 
         // TODO: handle more flags.

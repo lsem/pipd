@@ -122,6 +122,21 @@ struct Rect {
     Line left_line() const { return Line(Point(x, y), Point(x, y + height)); }
     Line right_line() const { return Line(Point(x + width, y), Point(x + width, y + height)); }
 
+    // TODO: Top line move is restricted to one dimension if we want to keep rectangles. But it may
+    // be more useful to have free form so that we can create parallelograms. But parallelgram would
+    // require showing angle.
+    //
+    void move_top_line(double dy) {
+        y += dy;
+        height -= dy;
+    }
+    void move_bottom_line(double dy) { height += dy; }
+    void move_left_line(double dx) {
+        x += dx;
+        width -= dx;
+    }
+    void move_right_line(double dx) { width += dx; }
+
     double x;
     double y;
     double width;
@@ -134,6 +149,7 @@ struct GuideObj {
 
 struct RectObj {
     Rect rect; // shouln't this be called geometry?
+    Rect shadow_rect;
 
     unsigned flags = 0;
 };
