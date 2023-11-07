@@ -308,7 +308,7 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent *event) {
             update_needed = true;
             //            }
         }
-
+        update_needed = true;
         if (update_needed)
             update();
 
@@ -608,8 +608,21 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
     }
     case Tool::rectangle: {
         qDebug() << "PRESS: RECT: " << x << ", " << y;
-        m_rect_tool_state.p1 = mouse_world;
-        m_rect_tool_state.rect_active = true;
+
+        if (!m_rect_tool_state.rect_active) {
+            m_rect_tool_state.rect_active = true;
+            m_rect_tool_state.p1 = mouse_world;
+            m_rect_tool_state.p2 = mouse_world;
+            update();
+            setMouseTracking(true);
+        } else {
+            m_rect_tool_state.p2 = mouse_world;
+            m_rect_tool_state.rect_active = false;
+            m_model.rects.emplace_back(
+                RectObj{Rect::from_two_points(m_rect_tool_state.p1, m_rect_tool_state.p2)});
+            update();
+        }
+
         break;
     }
 
@@ -641,11 +654,6 @@ void CanvasWidget::mouseReleaseEvent(QMouseEvent *event) {
         }
     }
     case Tool::rectangle: {
-        if (std::exchange(m_rect_tool_state.rect_active, false)) {
-            m_model.rects.emplace_back(
-                RectObj{Rect::from_two_points(m_rect_tool_state.p1, m_rect_tool_state.p2)});
-            update();
-        }
         break;
     }
     default: {
@@ -752,19 +760,12 @@ void CanvasWidget::render_guides(QPainter *painter, QPaintEvent *) {
     }
 }
 void CanvasWidget::render_rects(QPainter *painter, QPaintEvent *) {
-    if (m_rect_tool_state.rect_active) {
-        // Render rect currently being drawed
-        auto rect = Rect::from_two_points(m_rect_tool_state.p1, m_rect_tool_state.p2);
-        draw_rect(painter, rect, QColor(100, 100, 100));
-        // Also, draw dimensions of our rect. For this we find positions first.
-        qDebug() << "RENDER: RECT: " << rect.width << "x" << rect.height;
+    auto draw_measurements_for_rect = [painter](Rect rect) {
         v2 top_left{rect.x, rect.y};
         v2 top_right{rect.x + rect.width, rect.y};
         v2 bottom_left{rect.x, rect.y + rect.height};
         v2 width_label_pos = (top_left + top_right) / 2.0;
         v2 height_label_pos = (top_left + bottom_left) / 2.0;
-
-        // move width frame up and heught frame to the left
         width_label_pos.y -= 15.0;
         height_label_pos.x -= 15.0;
 
@@ -792,6 +793,16 @@ void CanvasWidget::render_rects(QPainter *painter, QPaintEvent *) {
         painter->drawText(to_qrectf(height_label_frame), Qt::AlignCenter | Qt::AlignVCenter,
                           format_distance_display_text(height_dist).c_str());
         painter->restore();
+        // ..
+    };
+
+    if (m_rect_tool_state.rect_active) {
+        // Render rect currently being drawed
+        auto rect = Rect::from_two_points(m_rect_tool_state.p1, m_rect_tool_state.p2);
+        draw_rect(painter, rect, QColor(100, 100, 100));
+        // Also, draw dimensions of our rect. For this we find positions first.
+        qDebug() << "RENDER: RECT: " << rect.width << "x" << rect.height;
+        draw_measurements_for_rect(rect);
     }
 
     for (auto &rectObj : m_model.rects) {
@@ -812,13 +823,8 @@ void CanvasWidget::render_rects(QPainter *painter, QPaintEvent *) {
         if (flags & (ObjFlags::top_rect_line_move | ObjFlags::bottom_rect_line_move |
                      ObjFlags::left_rect_line_move | ObjFlags::right_rect_line_move)) {
             draw_rect(painter, rectObj.shadow_rect, LightGrey);
+            draw_measurements_for_rect(rectObj.shadow_rect);
         }
-
-        // TODO: handle more flags.
-        // top_rect_line_move = 0x100,
-        // bottom_rect_line_move = 0x400,
-        // left_rect_line_move = 0x1000,
-        // right_rect_line_move = 0x4000,
     }
 }
 
