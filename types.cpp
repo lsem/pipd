@@ -23,6 +23,9 @@ QDebug &operator<<(QDebug &os, Tool t) {
     case Tool::rectangle:
         os << "rectangle";
         break;
+    case Tool::duct:
+        os << "duct";
+        break;
     default:
         os << "<tool:unknown>";
         break;

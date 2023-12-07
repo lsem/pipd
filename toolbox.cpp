@@ -66,6 +66,7 @@ ToolBox::ToolBox(QWidget *parent)
     m_move_tool = add_tool("M", Tool::move);
     m_guide_tool = add_tool("G", Tool::guide);
     m_rectangle_tool = add_tool("R", Tool::rectangle);
+    m_duct_tool = add_tool("D", Tool::duct);
 
     auto [c1, c2] = get_button_color(*m_hand_tool);
     m_neutral_color1 = c1;

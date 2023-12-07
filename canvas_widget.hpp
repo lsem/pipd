@@ -86,6 +86,7 @@ class CanvasWidget : public QWidget, public IToolHost {
     void render_rulers(QPainter *painter, QPaintEvent *);
     void render_guides(QPainter *painter, QPaintEvent *);
     void render_rects(QPainter *painter, QPaintEvent *);
+    void render_ducts(QPainter *painter, QPaintEvent *);
 
     double scaled(double x) const { return x / m_scale; }
     double thin_line_width() const { return scaled(1.0); }
@@ -110,6 +111,14 @@ class CanvasWidget : public QWidget, public IToolHost {
 
     double width_f() const { return static_cast<double>(width()); }
     double height_f() const { return static_cast<double>(height()); }
+
+    // TODO: move this to separate unit and have some good unit tests for this module.
+    bool can_be_next_point_in_duct_polyline(const std::vector<Point> &points, Point x);
+
+    // Based on current cursor position and existing polyline, suggest some points that where
+    // polyline can be continued.
+    std::vector<Point> possible_points_for_next_duct_in_polyline(const std::vector<Point> &points,
+                                                                 Point x);
 
   private:
     CanvasState m_state = CanvasState::idle;
@@ -147,4 +156,10 @@ class CanvasWidget : public QWidget, public IToolHost {
         Point p1;
         Point p2;
     } m_rect_tool_state;
+
+    struct {
+        bool active = false;
+        std::vector<Point> polyline;
+        Point next_end;
+    } m_duct_tool_state;
 };

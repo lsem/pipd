@@ -168,6 +168,7 @@ void CanvasWidget::paintEvent(QPaintEvent *event) /*override*/ {
     render_guides(&painter, event);
 
     render_rects(&painter, event);
+    render_ducts(&painter, event);
 
     painter.end();
 }
@@ -303,10 +304,9 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent *event) {
                     rect.flags |= ObjFlags::right_rect_line_move_howered;
                 }
             }
-
-            //            if (flags_before != rect.flags) {
+            // TODO: this may be optimizied if needed. With this, all update_needed=true above can
+            // be removed.
             update_needed = true;
-            //            }
         }
         update_needed = true;
         if (update_needed)
@@ -349,8 +349,30 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent *event) {
         } else {
             // .. handling hovers and snapping
         }
-        // m_rect_tool_state.start_pos = mouse_world;
-        // m_rect_tool_state.rect_active = true;
+        break;
+    }
+    case Tool::duct: {
+        auto &state = m_duct_tool_state;
+        if (state.active) {
+
+            // We can do the following:
+            //  Ask from Intelligent System if this position allowed. Or, we can give it position
+            //  and if not just ignore. Letting user to move to allowed position. We can imrove this
+            //  by asking system what are some of the allowed positions so that user has some idea
+            //  where he or she can move the cursor.
+
+            if (can_be_next_point_in_duct_polyline(state.polyline, mouse_world)) {
+                state.next_end = mouse_world;
+            }
+
+            // Lets calcualte possible place where we can put next duct leg based on previous leg
+            // and mouse position.
+            if (m_duct_tool_state.polyline.empty()) {
+                qDebug() << "MMOVE: DUCT: first leg";
+            }
+            // polyline.emplace_back(mouse_world);
+            update();
+        }
         break;
     }
     default:
@@ -626,6 +648,29 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
         break;
     }
 
+    case Tool::duct: {
+        qDebug() << "PRESS: DUCT: " << x << ", " << y;
+
+        // We don't allow to placing ducts freely. What we want to achieve that canvas restricted to
+        // allow only reasonable moves. Basically, based on previous leg of the polyline and cursor
+        // ther is suggested fixex location where duct can be placed. This apperently is somehow
+        // related to Turtle Graphics.
+        //
+
+        // TODO: this can be continuation of some previous point so we should check where we
+        // clicked. For now lets just assume that this is always beginning of new polyline.
+        if (!m_duct_tool_state.active) {
+            m_duct_tool_state.active = true;
+            m_duct_tool_state.polyline = {mouse_world};
+            m_duct_tool_state.next_end = mouse_world;
+            setMouseTracking(true);
+            update();
+        } else {
+            // Already active, commit current point into the path.
+            m_duct_tool_state.polyline.emplace_back(m_duct_tool_state.next_end);
+        }
+    }
+
     default:
         break;
     }
@@ -828,6 +873,23 @@ void CanvasWidget::render_rects(QPainter *painter, QPaintEvent *) {
     }
 }
 
+void CanvasWidget::render_ducts(QPainter *painter, QPaintEvent *) {
+    if (!m_duct_tool_state.polyline.empty()) {
+        for (size_t i = 1; i < m_duct_tool_state.polyline.size(); ++i) {
+            Point p1 = m_duct_tool_state.polyline[i - 1];
+            Point p2 = m_duct_tool_state.polyline[i];
+            draw_colored_line(painter, Line{p1, p2}, Grey, thicker_line_width());
+        }
+    }
+
+    auto &state = m_duct_tool_state;
+    if (state.active) {
+        // In move state, render hovers and suggestions.
+        draw_colored_line(painter, Line(state.polyline.back(), state.next_end), LightGrey,
+                          thin_line_width());
+    }
+}
+
 void CanvasWidget::render_lines(QPainter *painter, QPaintEvent *) {
     for (auto &line_obj : m_model.lines) {
         auto &[a, b] = line_obj.l;
@@ -968,4 +1030,41 @@ QTransform CanvasWidget::get_transformation_matrix() const {
     m.translate(-cx, -cy);
     m.translate(-m_translate_x, -m_translate_y);
     return m;
+}
+
+bool CanvasWidget::can_be_next_point_in_duct_polyline(const std::vector<Point> &points, Point x) {
+    if (points.size() < 2) {
+        return true;
+    }
+
+    // we want to check a line of points[N-2]..points[N-1] and points points[N-1]..X
+    // the angle between them cannot be arbitray. Ther are joints for: 45, 60 and 90 degrees:
+    // https://vents-shop.com.ua/povitrovodi-uk/fasonni-virobi-uk
+
+    auto p0 = points[points.size() - 2];
+    auto p1 = points[points.size() - 1];
+    auto p2 = x;
+
+    ::v2 u{p0, p1};
+    ::v2 v{p1, p2};
+
+    auto theta = math::angle_between_vectors(u, v) / M_PI * 180.0;
+
+    qDebug() << "theta: " << theta;
+
+    auto near_angle = [](double x, double y) { return std::fabs(x - y) < 3.0; };
+
+    if (near_angle(theta, 0) || near_angle(theta, 45) || near_angle(theta, 60) ||
+        near_angle(theta, 90) || near_angle(theta, 360.0 - 45.0) ||
+        near_angle(theta, 360.0 - 60.0) || near_angle(theta, 360.0 - 90.0)) {
+        qDebug() << "can be next point in duct polyline because of 45,60,90 degrees criteria";
+        return true;
+    }
+
+    return false;
+}
+
+std::vector<Point>
+CanvasWidget::possible_points_for_next_duct_in_polyline(const std::vector<Point> &points, Point x) {
+    return {};
 }

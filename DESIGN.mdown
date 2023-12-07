@@ -24,3 +24,27 @@ what types of objects we are going to have:
  and there will be go to other floor. So we go to another floor. Ideally there should be
  nice animated
  move in orthogpahic pojection to see corresponding palce on second floor.
+
+
+# How ductwork drawing can be implemented
+
+We are basically drawing a polyline. That comes from the fact, that we want to have
+all ducts connected. That is basic premise. Now, we can move legs similar to haw we move lines,
+and all connected legs will follow. Another option is to move joints between lines.
+The joints itself have type.
+
+How the drawing mechanics looks like?
+1) We select the tool. Now, when we click somewhere "in a milk", we created first endpoint of a line,
+when we move the cursor, second endpoint is drawn. Between the line there  is a joint. Now, the
+question is how we are supposed to select joint. We know that there are exists certain joint types:
+90 degrees, 60 degrees, 45 degrees and thus we should restrict free drawing on geometry level to these joint types.
+This is going to have impact on all drawing, including edits one wants to make later.
+
+
+# How to draw HVAC like things
+It seems like we need a whole new set of instruments.
+The main challange is how to how draw pipes. Pipes are like polylines which are rendered with body.
+
+
+
+
