@@ -44,6 +44,13 @@ bool point_howers_line(Point p, Line l) {
     return len(v2{p, math::closest_point_to_line(l.a, l.b, p)}) < 10;
 };
 
+v2 rotate_vector(v2 v, double angle_rad) {
+    QTransform m;
+    m.rotateRadians(angle_rad);
+    QPointF qf = QPointF(v.x, v.y) * m;
+    return v2{qf.x(), qf.y()};
+}
+
 const double SELECT_TOOL_HIT_BBOX = 20.0;
 
 std::array<Point, 4> line_bbox(Line l, double size) {
@@ -71,12 +78,17 @@ Line scale_line(Line l, double factor) {
     QPointF q2 = to_qpointf(l.b) * m;
     return Line{to_point(q1), to_point(q2)};
 }
-Line rotate_line(Line l, double angle_rad) {
+
+Line rotate_line(Line l, double angle_rad, bool around_center = true) {
     v2 center = (l.a + l.b) / 2;
     QTransform m;
-    m.translate(center.x, center.y);
+    if (around_center) {
+        m.translate(center.x, center.y);
+    }
     m.rotateRadians(angle_rad);
-    m.translate(-center.x, -center.y);
+    if (around_center) {
+        m.translate(-center.x, -center.y);
+    }
     QPointF q1 = to_qpointf(l.a) * m;
     QPointF q2 = to_qpointf(l.b) * m;
     return Line{to_point(q1), to_point(q2)};
@@ -124,10 +136,132 @@ void draw_colored_point(QPainter *painter, Point p, QColor c, double size = 5.0)
 
 } // namespace
 
+std::string rounder_path(std::vector<Point> path) {
+    if (path.empty()) {
+        return "";
+    }
+
+    std::stringstream result;
+
+    path.push_back(path.front());
+
+    Point prev, next;
+
+    enum class line_direction { h, v };
+
+    line_direction prev_dir = line_direction::h; // any
+    line_direction curr_dir = line_direction::h; // any
+
+    for (int i = 0; i < path.size() - 1; ++i) {
+        auto p0 = path[i];
+        auto p1 = path[i + 1];
+
+        // the line is either vertical of horizontal, find out which one
+        if (p0.x == p1.x) {
+            // vertical line
+            curr_dir = line_direction::v;
+            const int direction = p0.y < p1.y ? 1 : -1;
+            p0.y += 10 * direction;
+            p1.y -= 10 * direction;
+
+        } else if (p0.y == p1.y) {
+            // horizontal line
+            curr_dir = line_direction::h;
+            const int direction = p0.x < p1.x ? 1 : -1;
+            p0.x += 10 * direction;
+            p1.x -= 10 * direction;
+        } else {
+            assert(false);
+        }
+
+        result << " M" << p0.x << " " << p0.y;
+        result << " L" << p1.x << " " << p1.y;
+
+        if (i > 0) {
+            // connect prev with next (p0) with Quad
+            auto q0 = prev;
+            auto q1 = p0;
+            if (q1.x > q0.x) {
+                if (prev_dir == line_direction::h && curr_dir == line_direction::v) {
+                    result << " M" << prev.x << " " << prev.y;
+                    result << " Q " << prev.x + 10 << " " << prev.y << " " << p0.x << " " << p0.y;
+                } else if (prev_dir == line_direction::v && curr_dir == line_direction::h) {
+                    result << " M" << prev.x << " " << prev.y;
+                    result << " Q " << prev.x << " " << prev.y + 10 << " " << p0.x << " " << p0.y;
+                }
+            } else if (q1.x < q0.x) {
+                if (prev_dir == line_direction::h && curr_dir == line_direction::v) {
+                    result << " M" << prev.x << " " << prev.y;
+                    result << " Q " << prev.x - 10 << " " << prev.y << " " << p0.x << " " << p0.y;
+                } else if (prev_dir == line_direction::v && curr_dir == line_direction::h) {
+                    result << " M" << prev.x << " " << prev.y;
+                    result << " Q " << prev.x << " " << prev.y + 10 << " " << p0.x << " " << p0.y;
+                }
+            }
+        }
+
+        prev = p1;
+        prev_dir = curr_dir;
+    }
+
+    return result.str();
+}
+std::vector<Point> calculuate_union(const std::vector<Rect> &rects) {
+    if (rects.empty())
+        return {};
+
+    auto sorted_rects = rects;
+    std::sort(sorted_rects.begin(), sorted_rects.end(),
+              [](auto &lhs, auto &rhs) { return lhs.y < rhs.y; });
+
+    const size_t N = sorted_rects.size();
+
+    // we are going to have minimum coords in left
+    // but right margin it will be variable on each level
+    const int leftmost_margin = std::numeric_limits<int>::max();
+
+    std::vector<Point> rects_union;
+    rects_union.push_back(sorted_rects.front().upper_left_corner());
+    rects_union.push_back(sorted_rects.front().upper_right_corner());
+
+    int current_x = rects_union.back().x;
+    int current_y = rects_union.back().y;
+
+    const int OFFSET = 10;
+
+    for (auto &r : sorted_rects) {
+        current_y = r.y;
+
+        rects_union.push_back(Point(current_x, current_y));
+
+        if (r.x + r.width > current_x) {
+            current_x = r.x + r.width;
+            rects_union.push_back(Point(current_x, current_y));
+        } else if (r.x + r.width < current_x) {
+            current_x = r.x + r.width;
+            rects_union.push_back(Point(current_x, current_y));
+        }
+    }
+
+    rects_union.push_back(sorted_rects.back().bottom_right_corner());
+    rects_union.push_back(Point(sorted_rects.front().bottom_left_corner().x,
+                                sorted_rects.back().bottom_left_corner().y));
+
+    return rects_union;
+}
+
 CanvasWidget::CanvasWidget(QWidget *parent) : QWidget(parent), m_move_tool(*this, m_model) {
     // put few points for the test.
     // m_model.points.emplace_back(PointObj{{20, 20}, "1"});
     // m_model.points.emplace_back(PointObj{{100, 100}, "2"});
+
+    m_sample_rects.emplace_back(Rect::from_two_points(Point(100, 100), Point(200, 200)));
+    m_sample_rects.emplace_back(Rect::from_two_points(Point(50, 50), Point(95, 85)));
+    m_sample_rects.emplace_back(Rect::from_two_points(Point(70, 210), Point(170, 260)));
+
+    m_sample_rects_union = calculuate_union(m_sample_rects);
+
+    qDebug() << rounder_path(m_sample_rects_union).c_str();
 }
 
 CanvasWidget::~CanvasWidget() = default;
@@ -170,6 +304,8 @@ void CanvasWidget::paintEvent(QPaintEvent *event) /*override*/ {
     render_rects(&painter, event);
     render_ducts(&painter, event);
 
+    render_rects2(&painter, event);
+
     painter.end();
 }
 
@@ -199,8 +335,8 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent *event) {
     }
     case Tool::hand: {
         if (m_hand_tool_state == HandToolState::pressed) {
-            m_translate_x -= dx;
-            m_translate_y -= dy;
+            m_translate_x -= sdx;
+            m_translate_y -= sdy;
 
             qDebug() << "translate: " << m_translate_x << ", " << m_translate_y;
         }
@@ -242,9 +378,9 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent *event) {
                 line.shadow_l.b.x += sdx;
                 line.shadow_l.b.y += sdy;
             } else {
-                // Clear all hower-related flag to make transitions between howered object correct.
-                // E.g. when line is howered and then we hower endpoint line should lose its
-                // howerness.
+                // Clear all hower-related flag to make transitions between howered object
+                // correct. E.g. when line is howered and then we hower endpoint line should
+                // lose its howerness.
                 line.flags &= ~(ObjFlags::howered | ObjFlags::a_endpoint_move_howered |
                                 ObjFlags::b_endpoint_move_howered);
                 update_needed = true;
@@ -272,9 +408,9 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent *event) {
 
         for (auto &rect : m_model.rects) {
             auto flags_before = rect.flags;
-            // TODO: Current Move tool is basically resize tool. Instead, we should have separate
-            // tool that would move entire object: line or rect. and separate tool for resize: which
-            // allows to change only size of an on object.
+            // TODO: Current Move tool is basically resize tool. Instead, we should have
+            // separate tool that would move entire object: line or rect. and separate tool for
+            // resize: which allows to change only size of an on object.
 
             if (rect.flags & ObjFlags::top_rect_line_move) {
                 // TODO: here we should have a command instead of direct model manipulation.
@@ -287,8 +423,8 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent *event) {
                 rect.shadow_rect.move_right_line(sdx);
             } else {
 
-                // before testing new hovers, first clean all existing hovers to handle when line is
-                // no longer hovered
+                // before testing new hovers, first clean all existing hovers to handle when
+                // line is no longer hovered
                 rect.flags &= ~(
                     ObjFlags::top_rect_line_move_howered | ObjFlags::bottom_rect_line_move_howered |
                     ObjFlags::left_rect_line_move_howered | ObjFlags::right_rect_line_move_howered);
@@ -304,8 +440,8 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent *event) {
                     rect.flags |= ObjFlags::right_rect_line_move_howered;
                 }
             }
-            // TODO: this may be optimizied if needed. With this, all update_needed=true above can
-            // be removed.
+            // TODO: this may be optimizied if needed. With this, all update_needed=true above
+            // can be removed.
             update_needed = true;
         }
         update_needed = true;
@@ -355,23 +491,54 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent *event) {
         auto &state = m_duct_tool_state;
         if (state.active) {
 
-            // We can do the following:
-            //  Ask from Intelligent System if this position allowed. Or, we can give it position
-            //  and if not just ignore. Letting user to move to allowed position. We can imrove this
-            //  by asking system what are some of the allowed positions so that user has some idea
-            //  where he or she can move the cursor.
-
-            if (can_be_next_point_in_duct_polyline(state.polyline, mouse_world)) {
-                state.next_end = mouse_world;
+            auto maybe_point = suggest_possible_leg_placement(mouse_world, state.polyline);
+            if (maybe_point.has_value()) {
+                state.next_end = maybe_point.value();
             }
 
-            // Lets calcualte possible place where we can put next duct leg based on previous leg
-            // and mouse position.
             if (m_duct_tool_state.polyline.empty()) {
                 qDebug() << "MMOVE: DUCT: first leg";
             }
             // polyline.emplace_back(mouse_world);
             update();
+        } else {
+            qDebug() << "MMOVE: DUCT: not active";
+
+            // Handling howering. For ducts it makes perfect sense to have snapping to
+            // interesting points. These interesting points are: 1) ending of duct so that we
+            // connect pipes (with or without implicit fitting creation). 2) fittings have its
+            // own interesting points So we go through pipes and fittings points and if cursor
+            // is close enough, "Activate" a point.
+
+            auto mouse_hovers = [mouse_world](Point pt) {
+                return math::points_distance(pt, mouse_world) < 10.0;
+            };
+
+            // Ducts
+            for (auto &duct : m_model.ducts) {
+                if (mouse_hovers(duct.begin)) {
+                    duct.flags |= ObjFlags::duct_a_endpoint_howered;
+                } else if (mouse_hovers(duct.end)) {
+                    duct.flags |= ObjFlags::duct_b_endpoint_howered;
+                }
+            }
+
+            // Fittings
+            for (auto &fitting : m_model.fittings) {
+                if (auto adapter = std::get_if<Adapter>(&fitting.fitting_variant)) {
+                    if (mouse_hovers(adapter->begin)) {
+                        fitting.flags |= ObjFlags::fitting_a_endpoint_howered;
+                    } else if (mouse_hovers(adapter->end)) {
+                        fitting.flags |= ObjFlags::fitting_b_endpoint_howered;
+                    }
+                } else if (auto split3 = std::get_if<Split3>(&fitting.fitting_variant)) {
+                    if (mouse_hovers(split3->begin)) {
+                        fitting.flags |= ObjFlags::fitting_a_endpoint_howered;
+                    } else if (mouse_hovers(split3->end)) {
+                        fitting.flags |= ObjFlags::fitting_a_endpoint_howered;
+                    }
+                }
+            }
         }
         break;
     }
@@ -379,7 +546,6 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent *event) {
         break;
     }
 }
-
 std::string random_id() {
     std::string s;
     for (int i = 0; i < 12; ++i) {
@@ -460,8 +626,8 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
                 qDebug("not hit!");
             }
 
-            // we can select things. After things are selected they can be moved, we can display
-            // properties of things.
+            // we can select things. After things are selected they can be moved, we can
+            // display properties of things.
         }
 
         m_projection_points.clear();
@@ -486,12 +652,12 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
         setMouseTracking(true);
         qDebug() << "mousePress: move tool selected";
         // Selecto tool works only on objects that are currently under cursor.
-        // so we first need to find what object is under cursor. We expect there could be only
-        // one object under cursor. If this is not possible then we can use preselected tool
-        // with Select tool and by doing this at the moment we try to apply Move tool, we should
-        // already have object selected so we can ignore all objects which are not in selected
-        // state. But for for now, for the sake of simplicity, we can just consider everything
-        // and see how it works.
+        // so we first need to find what object is under cursor. We expect there could be
+        // only one object under cursor. If this is not possible then we can use preselected
+        // tool with Select tool and by doing this at the moment we try to apply Move tool,
+        // we should already have object selected so we can ignore all objects which are not
+        // in selected state. But for for now, for the sake of simplicity, we can just
+        // consider everything and see how it works.
 
         for (auto &line : m_model.lines) {
             if (line.flags & ObjFlags::moving) {
@@ -506,13 +672,14 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
                 // Beginning of linne/endpoints move
                 auto &line_geometry = line.l;
 
-                // Move tool has different handling of lines and endpoints. For endpoints, Move
-                // tool moves endpoints and lines follow them if they are associated with it.
-                // For line it translates the line as is.
-                // TODO: in mouseMove handler, highlight current endpoints or line that. We can
-                // either repeat this logic or we can somehow delegate this into Move tool. What
-                // if move tool can handle events. class MoveTool { void on_mouse_move(); void
-                // on_press(); void on_release(); void render_state(QPainter, Model) {} }
+                // Move tool has different handling of lines and endpoints. For endpoints,
+                // Move tool moves endpoints and lines follow them if they are associated
+                // with it. For line it translates the line as is.
+                // TODO: in mouseMove handler, highlight current endpoints or line that. We
+                // can either repeat this logic or we can somehow delegate this into Move
+                // tool. What if move tool can handle events. class MoveTool { void
+                // on_mouse_move(); void on_press(); void on_release(); void
+                // render_state(QPainter, Model) {} }
                 if (math::points_distance(line_geometry.a, mouse_world) < 10.0) {
                     qDebug() << "MOVE: around A endpoint";
                     line.flags = ObjFlags::a_endpoint_move;
@@ -573,9 +740,9 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
     }
     case Tool::guide: {
         // guide starts from somewhere and stops somewhere. Orientation depends on baseline
-        // where it started from. e.g. if we started from ruller/left side then we are going to
-        // create vertical line. if we started from another line/edge, then angle will ba taken
-        // from there.
+        // where it started from. e.g. if we started from ruller/left side then we are going
+        // to create vertical line. if we started from another line/edge, then angle will ba
+        // taken from there.
         //
         // so check if we have some line/edge/anthing that we can take angle from.
 
@@ -651,23 +818,39 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
     case Tool::duct: {
         qDebug() << "PRESS: DUCT: " << x << ", " << y;
 
-        // We don't allow to placing ducts freely. What we want to achieve that canvas restricted to
-        // allow only reasonable moves. Basically, based on previous leg of the polyline and cursor
-        // ther is suggested fixex location where duct can be placed. This apperently is somehow
-        // related to Turtle Graphics.
+        auto &state = m_duct_tool_state;
+
+        // We don't allow to placing ducts freely. What we want to achieve that canvas
+        // restricted to allow only reasonable moves. Basically, based on previous leg of
+        // the polyline and cursor ther is suggested fixex location where duct can be
+        // placed. This apperently is somehow related to Turtle Graphics.
         //
 
         // TODO: this can be continuation of some previous point so we should check where we
         // clicked. For now lets just assume that this is always beginning of new polyline.
-        if (!m_duct_tool_state.active) {
-            m_duct_tool_state.active = true;
-            m_duct_tool_state.polyline = {mouse_world};
-            m_duct_tool_state.next_end = mouse_world;
+        if (!state.active) {
+            state.active = true;
+            state.polyline = {mouse_world};
+            state.next_end = mouse_world;
             setMouseTracking(true);
             update();
         } else {
             // Already active, commit current point into the path.
-            m_duct_tool_state.polyline.emplace_back(m_duct_tool_state.next_end);
+            state.polyline.emplace_back(m_duct_tool_state.next_end);
+
+            std::vector<Line> lines_suggestions;
+
+            if (state.polyline.size() > 2) {
+                state.directional_lines.clear();
+                auto ends_suggesions =
+                    possible_points_for_next_duct_in_polyline(state.polyline, mouse_world);
+
+                for (auto &x : ends_suggesions) {
+                    state.directional_lines.emplace_back(Line(state.polyline.back(), x));
+                }
+            }
+
+            update();
         }
     }
 
@@ -872,8 +1055,18 @@ void CanvasWidget::render_rects(QPainter *painter, QPaintEvent *) {
         }
     }
 }
-
 void CanvasWidget::render_ducts(QPainter *painter, QPaintEvent *) {
+    // Ducts
+    for (auto &duct : m_model.ducts) {
+        render_duct(painter, duct);
+    }
+
+    // Fittings
+    for (auto &fitting : m_model.fittings) {
+        render_fitting(painter, fitting);
+    }
+
+    // Duct tool state
     if (!m_duct_tool_state.polyline.empty()) {
         for (size_t i = 1; i < m_duct_tool_state.polyline.size(); ++i) {
             Point p1 = m_duct_tool_state.polyline[i - 1];
@@ -885,9 +1078,29 @@ void CanvasWidget::render_ducts(QPainter *painter, QPaintEvent *) {
     auto &state = m_duct_tool_state;
     if (state.active) {
         // In move state, render hovers and suggestions.
-        draw_colored_line(painter, Line(state.polyline.back(), state.next_end), LightGrey,
-                          thin_line_width());
+        draw_colored_line(painter, Line(state.polyline.back(), state.next_end), Blue,
+                          thicker_line_width());
     }
+
+    for (auto &l : state.directional_lines) {
+        draw_dashed_line(painter, l, LightGrey, thin_line_width());
+    }
+}
+
+void CanvasWidget::render_duct(QPainter *painter, Duct &) {}
+void CanvasWidget::render_fitting(QPainter *painter, Fitting &) {}
+
+void CanvasWidget::render_rects2(QPainter *painter, QPaintEvent *) {
+    for (auto &r : m_sample_rects) {
+        draw_rect(painter, r, QColor(100, 100, 100));
+    }
+
+    for (size_t i = 0; i < m_sample_rects_union.size() - 1; ++i) {
+        draw_dashed_line(painter, Line(m_sample_rects_union[i], m_sample_rects_union[i + 1]), Pink,
+                         thicker_line_width());
+    }
+    draw_dashed_line(painter, Line(m_sample_rects_union.back(), m_sample_rects_union.front()), Pink,
+                     thicker_line_width());
 }
 
 void CanvasWidget::render_lines(QPainter *painter, QPaintEvent *) {
@@ -1038,8 +1251,8 @@ bool CanvasWidget::can_be_next_point_in_duct_polyline(const std::vector<Point> &
     }
 
     // we want to check a line of points[N-2]..points[N-1] and points points[N-1]..X
-    // the angle between them cannot be arbitray. Ther are joints for: 45, 60 and 90 degrees:
-    // https://vents-shop.com.ua/povitrovodi-uk/fasonni-virobi-uk
+    // the angle between them cannot be arbitray. Ther are joints for: 45, 60 and 90
+    // degrees: https://vents-shop.com.ua/povitrovodi-uk/fasonni-virobi-uk
 
     auto p0 = points[points.size() - 2];
     auto p1 = points[points.size() - 1];
@@ -1054,17 +1267,94 @@ bool CanvasWidget::can_be_next_point_in_duct_polyline(const std::vector<Point> &
 
     auto near_angle = [](double x, double y) { return std::fabs(x - y) < 3.0; };
 
-    if (near_angle(theta, 0) || near_angle(theta, 45) || near_angle(theta, 60) ||
-        near_angle(theta, 90) || near_angle(theta, 360.0 - 45.0) ||
-        near_angle(theta, 360.0 - 60.0) || near_angle(theta, 360.0 - 90.0)) {
-        qDebug() << "can be next point in duct polyline because of 45,60,90 degrees criteria";
-        return true;
+    const std::array angles = {0., 45., 60., 90., 360. - 45., 360. - 60., 360. - 90.};
+    for (auto alpha : angles) {
+        if (near_angle(theta, alpha)) {
+            qDebug() << "fits to " << alpha;
+            return true;
+        }
     }
+
+    // if (near_angle(theta, 0) || near_angle(theta, 45) || near_angle(theta, 60) ||
+    //     near_angle(theta, 90) || near_angle(theta, 360.0 - 45.0) ||
+    //     near_angle(theta, 360.0 - 60.0) || near_angle(theta, 360.0 - 90.0)) {
+    //     qDebug() << "can be next point in duct polyline because of 45,60,90 degrees
+    //     criteria"; return true;
+    // }
 
     return false;
 }
 
+std::optional<Point> CanvasWidget::suggest_possible_leg_placement(Point x,
+                                                                  std::vector<Point> &points) {
+    if (points.size() < 2) {
+        return x;
+    }
+
+    // we want to check a line of points[N-2]..points[N-1] and points points[N-1]..X
+    // the angle between them cannot be arbitray. Ther are joints for: 45, 60 and 90
+    // degrees: https://vents-shop.com.ua/povitrovodi-uk/fasonni-virobi-uk
+
+    //    auto  = possible_points_for_next_duct_in_polyline(points, x);
+
+    // now I want to project x to every suggested line and see what is the closest one for
+    // me.
+
+    Point closest_proj_p;
+    double min_dist = INFINITY;
+    for (auto e : possible_points_for_next_duct_in_polyline(points, x)) {
+        Point p = math::closest_point_to_line(points.back(), e, x);
+        // p is a projection of x on line {points.back(), e}
+        auto d = len2(v2(x, p));
+        if (d < min_dist) {
+            min_dist = d;
+            closest_proj_p = p;
+        }
+    }
+
+    //    qDebug() << "min dist: " << min_dist;
+    //    if (min_dist < 150.0) {
+    //        qDebug() << "RETURNING CLOSEST PROJECTION!";
+    return closest_proj_p;
+    //    }
+
+    //    return std::nullopt;
+}
+
 std::vector<Point>
 CanvasWidget::possible_points_for_next_duct_in_polyline(const std::vector<Point> &points, Point x) {
-    return {};
+    if (points.size() < 2) {
+        return {};
+    }
+
+    const auto p0 = points[points.size() - 2];
+    const auto p1 = points[points.size() - 1];
+
+    ::v2 u{p0, p1};
+
+    // We are going to generate directional lines which show where we can put nexte leg of
+    // polyline:
+    //                |  /
+    //                | /
+    //  -p0-----------p1-----------
+    //                | \
+    //                |  \
+
+    // First, lets generate perpendicular lines.
+    const double DIR_LINE_LENGTH = 2000.0 / m_scale;
+    ::v2 perp1 = normalized(normal(u));
+    ::v2 perp2 = perp1 * -1.0;
+
+    Point normal1_p = p1 + perp1 * DIR_LINE_LENGTH;
+    Point normal2_p = p1 + perp2 * DIR_LINE_LENGTH;
+    Point forward_p = p1 + normalized(u) * DIR_LINE_LENGTH;
+
+    auto rad = [](double d) { return d * M_PI / 180.0; };
+
+    Point _45 = p1 + rotate_vector(normalized(u) * DIR_LINE_LENGTH, rad(45));
+    Point _m45 = p1 + rotate_vector(normalized(u) * DIR_LINE_LENGTH, rad(-45));
+    Point _60 = p1 + rotate_vector(normalized(u) * DIR_LINE_LENGTH, rad(60));
+    Point _m60 = p1 + rotate_vector(normalized(u) * DIR_LINE_LENGTH, rad(-60));
+
+    return {normal1_p, normal2_p, forward_p, _45, _m45, _60, _m60};
 }

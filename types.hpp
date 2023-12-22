@@ -3,6 +3,7 @@
 #include <QPointF>
 #include <optional>
 #include <string>
+#include <variant>
 
 namespace ObjFlags {
 enum {
@@ -25,6 +26,12 @@ enum {
     left_rect_line_move = 0x1000,
     right_rect_line_move_howered = 0x2000,
     right_rect_line_move = 0x4000,
+
+    // duct handling,
+    duct_a_endpoint_howered = 0x8000,
+    duct_b_endpoint_howered = 0x10000,
+    fitting_a_endpoint_howered = 0x20000,
+    fitting_b_endpoint_howered = 0x40000,
 };
 }
 
@@ -115,7 +122,10 @@ struct Rect {
     }
 
     Point upper_left_corner() const { return {x, y}; }
+    Point upper_right_corner() const { return {x + width, y}; }
     Point center() const { return {x + width / 2, y + height / 2}; }
+    Point bottom_right_corner() const { return {x + width, y + height}; }
+    Point bottom_left_corner() const { return {x, y + height}; }
 
     Line top_line() const { return Line(Point(x, y), Point(x + width, y)); }
     Line bottom_line() const { return Line(Point(x, y + height), Point(x + width, y + height)); }
@@ -154,9 +164,51 @@ struct RectObj {
     unsigned flags = 0;
 };
 
+struct Duct {
+    unsigned size_mm;
+    // Note, we don't have explicit length.
+    Point begin;
+    Point end;
+
+    uint32_t flags;
+};
+
+// Adapts one size to another side. This is generic component for adapter, actual adapter is going
+// to be created from catalogue.
+struct Adapter {
+    Point center;
+    Point begin;
+    Point end;
+};
+
+struct Split3 {
+    Point begin;
+    Point end;
+};
+
+struct Fitting {
+    std::variant<Adapter, Split3> fitting_variant;
+    uint32_t flags;
+};
+
 struct Model {
     std::vector<PointObj> points;
     std::vector<LineObj> lines;
     std::vector<GuideObj> guides;
     std::vector<RectObj> rects;
+
+    // Ducts model allow to have any configuration including completely disconnected ducts,fittings
+    // and other elements. On practise however, we are not going to allow creation of any model.
+    std::vector<Duct> ducts;
+    std::vector<Fitting> fittings;
+
+    // What about connections between ducts and fittings?
+    // connections?
+    // What is the use case of our connections?
+    // ducts should be connected to fittings.
 };
+
+// Next question, how we are supposed to work with these ducts?
+// How to model a joint of two? One possible way for doing this is to have a new thing called
+// Fitting. This way we connect fitting to three ducts. Fitting has its own representation and its
+// own constraints (like minimum size), it also has a dimater and aerodynamic characteristics.
