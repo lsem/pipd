@@ -157,27 +157,31 @@ std::string rounder_path(std::vector<Point> path) {
         auto p1 = path[i + 1];
 
         // the line is either vertical of horizontal, find out which one
-        if (p0.x == p1.x) {
-            // vertical line
-            curr_dir = line_direction::v;
-            const int direction = p0.y < p1.y ? 1 : -1;
-            p0.y += 10 * direction;
-            p1.y -= 10 * direction;
+        if (i != path.size() - 1) {
 
-        } else if (p0.y == p1.y) {
-            // horizontal line
-            curr_dir = line_direction::h;
-            const int direction = p0.x < p1.x ? 1 : -1;
-            p0.x += 10 * direction;
-            p1.x -= 10 * direction;
-        } else {
-            assert(false);
+            if (p0.x == p1.x) {
+                // vertical line
+                curr_dir = line_direction::v;
+                const int direction = p0.y < p1.y ? 1 : -1;
+                p0.y += 10 * direction;
+                p1.y -= 10 * direction;
+
+            } else if (p0.y == p1.y) {
+                // horizontal line
+                curr_dir = line_direction::h;
+                const int direction = p0.x < p1.x ? 1 : -1;
+                p0.x += 10 * direction;
+                p1.x -= 10 * direction;
+            } else {
+                assert(false);
+            }
+
+            result << " M" << p0.x << " " << p0.y;
+            result << " L" << p1.x << " " << p1.y;
         }
 
-        result << " M" << p0.x << " " << p0.y;
-        result << " L" << p1.x << " " << p1.y;
-
         if (i > 0) {
+            // ?
             // connect prev with next (p0) with Quad
             auto q0 = prev;
             auto q1 = p0;
@@ -198,6 +202,7 @@ std::string rounder_path(std::vector<Point> path) {
                     result << " Q " << prev.x << " " << prev.y + 10 << " " << p0.x << " " << p0.y;
                 }
             }
+        } else {
         }
 
         prev = p1;
@@ -229,18 +234,13 @@ std::vector<Point> calculuate_union(const std::vector<Rect> &rects) {
 
     const int OFFSET = 10;
 
-    for (auto &r : sorted_rects) {
+    for (auto it = std::next(sorted_rects.begin()); it != sorted_rects.end(); ++it) {
+        auto &r = *it;
         current_y = r.y;
 
         rects_union.push_back(Point(current_x, current_y));
-
-        if (r.x + r.width > current_x) {
-            current_x = r.x + r.width;
-            rects_union.push_back(Point(current_x, current_y));
-        } else if (r.x + r.width < current_x) {
-            current_x = r.x + r.width;
-            rects_union.push_back(Point(current_x, current_y));
-        }
+        current_x = r.x + r.width;
+        rects_union.push_back(Point(current_x, current_y));
     }
 
     rects_union.push_back(sorted_rects.back().bottom_right_corner());
