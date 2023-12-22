@@ -157,28 +157,26 @@ std::string rounder_path(std::vector<Point> path) {
         auto p1 = path[i + 1];
 
         // the line is either vertical of horizontal, find out which one
-        if (i != path.size() - 1) {
 
-            if (p0.x == p1.x) {
-                // vertical line
-                curr_dir = line_direction::v;
-                const int direction = p0.y < p1.y ? 1 : -1;
-                p0.y += 10 * direction;
-                p1.y -= 10 * direction;
+        if (p0.x == p1.x) {
+            // vertical line
+            curr_dir = line_direction::v;
+            const int direction = p0.y < p1.y ? 1 : -1;
+            p0.y += 10 * direction;
+            p1.y -= 10 * direction;
 
-            } else if (p0.y == p1.y) {
-                // horizontal line
-                curr_dir = line_direction::h;
-                const int direction = p0.x < p1.x ? 1 : -1;
-                p0.x += 10 * direction;
-                p1.x -= 10 * direction;
-            } else {
-                assert(false);
-            }
-
-            result << " M" << p0.x << " " << p0.y;
-            result << " L" << p1.x << " " << p1.y;
+        } else if (p0.y == p1.y) {
+            // horizontal line
+            curr_dir = line_direction::h;
+            const int direction = p0.x < p1.x ? 1 : -1;
+            p0.x += 10 * direction;
+            p1.x -= 10 * direction;
+        } else {
+            assert(false);
         }
+
+        result << " M" << p0.x << " " << p0.y;
+        result << " L" << p1.x << " " << p1.y;
 
         if (i > 0) {
             // ?
@@ -209,6 +207,17 @@ std::string rounder_path(std::vector<Point> path) {
         prev_dir = curr_dir;
     }
 
+    // we know that first leg of the path must always be horizontal line and previou is always
+    // vertical line up. so the joint is also known: left to right, down to up.
+    Point last_p = *std::prev(path.end());
+    Point q0 = last_p;
+    q0.y += 10;
+
+    Point q1 = *std::begin(path);
+    q1.x += 10;
+
+    result << " M" << q0.x << " " << q0.y;
+    result << " Q" << last_p.x << " " << last_p.y << " " << q1.x << " " << q1.y;
     return result.str();
 }
 std::vector<Point> calculuate_union(const std::vector<Rect> &rects) {
