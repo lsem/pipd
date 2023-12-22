@@ -232,16 +232,21 @@ std::vector<Point> calculuate_union(const std::vector<Rect> &rects) {
 
     // we are going to have minimum coords in left
     // but right margin it will be variable on each level
-    const int leftmost_margin = std::numeric_limits<int>::max();
+    int left_margin = std::numeric_limits<int>::max();
+    for (auto &sr : sorted_rects) {
+        if (sr.x < left_margin) {
+            left_margin = sr.x;
+        }
+    }
 
     std::vector<Point> rects_union;
     rects_union.push_back(sorted_rects.front().upper_left_corner());
+    rects_union.back().x = left_margin;
+
     rects_union.push_back(sorted_rects.front().upper_right_corner());
 
     int current_x = rects_union.back().x;
     int current_y = rects_union.back().y;
-
-    const int OFFSET = 10;
 
     for (auto it = std::next(sorted_rects.begin()); it != sorted_rects.end(); ++it) {
         auto &r = *it;
@@ -253,8 +258,7 @@ std::vector<Point> calculuate_union(const std::vector<Rect> &rects) {
     }
 
     rects_union.push_back(sorted_rects.back().bottom_right_corner());
-    rects_union.push_back(Point(sorted_rects.front().bottom_left_corner().x,
-                                sorted_rects.back().bottom_left_corner().y));
+    rects_union.push_back(Point(left_margin, sorted_rects.back().bottom_left_corner().y));
 
     return rects_union;
 }
@@ -267,6 +271,9 @@ CanvasWidget::CanvasWidget(QWidget *parent) : QWidget(parent), m_move_tool(*this
     m_sample_rects.emplace_back(Rect::from_two_points(Point(100, 100), Point(200, 200)));
     m_sample_rects.emplace_back(Rect::from_two_points(Point(50, 50), Point(95, 85)));
     m_sample_rects.emplace_back(Rect::from_two_points(Point(70, 210), Point(170, 260)));
+    m_sample_rects.emplace_back(Rect::from_two_points(Point(40, 290), Point(250, 310)));
+    m_sample_rects.emplace_back(Rect::from_two_points(Point(40, 350), Point(50, 400)));
+    m_sample_rects.emplace_back(Rect::from_two_points(Point(40, 450), Point(250, 480)));
 
     m_sample_rects_union = calculuate_union(m_sample_rects);
 
