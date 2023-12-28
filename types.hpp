@@ -176,9 +176,10 @@ struct Duct {
 // Adapts one size to another side. This is generic component for adapter, actual adapter is going
 // to be created from catalogue.
 struct Adapter {
-    Point center;
     Point begin;
     Point end;
+    double begin_d = 0.0;
+    double end_d = 0.0;
 };
 
 struct Split3 {
@@ -188,6 +189,7 @@ struct Split3 {
 
 struct Fitting {
     std::variant<Adapter, Split3> fitting_variant;
+    Point center;
     uint32_t flags;
 };
 

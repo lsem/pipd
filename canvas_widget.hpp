@@ -89,7 +89,8 @@ class CanvasWidget : public QWidget, public IToolHost {
     void render_ducts(QPainter *painter, QPaintEvent *);
     void render_duct(QPainter *painter, Duct &);
     void render_fitting(QPainter *painter, Fitting &);
-    void render_rects2(QPainter *painter, QPaintEvent *);
+    void render_fitting__adapter(QPainter *painter, Adapter &);
+    void render_fitting__split(QPainter *painter, Split3 &);
 
     double scaled(double x) const { return x / m_scale; }
     double thin_line_width() const { return scaled(1.0); }
@@ -170,8 +171,4 @@ class CanvasWidget : public QWidget, public IToolHost {
 
         std::vector<Line> directional_lines;
     } m_duct_tool_state;
-
-
-    std::vector<Rect> m_sample_rects;
-    std::vector<Point> m_sample_rects_union;
 };

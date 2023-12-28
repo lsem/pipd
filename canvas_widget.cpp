@@ -264,20 +264,10 @@ std::vector<Point> calculuate_union(const std::vector<Rect> &rects) {
 }
 
 CanvasWidget::CanvasWidget(QWidget *parent) : QWidget(parent), m_move_tool(*this, m_model) {
-    // put few points for the test.
-    // m_model.points.emplace_back(PointObj{{20, 20}, "1"});
-    // m_model.points.emplace_back(PointObj{{100, 100}, "2"});
 
-    m_sample_rects.emplace_back(Rect::from_two_points(Point(100, 100), Point(200, 200)));
-    m_sample_rects.emplace_back(Rect::from_two_points(Point(50, 50), Point(95, 85)));
-    m_sample_rects.emplace_back(Rect::from_two_points(Point(70, 210), Point(170, 260)));
-    m_sample_rects.emplace_back(Rect::from_two_points(Point(40, 290), Point(250, 310)));
-    m_sample_rects.emplace_back(Rect::from_two_points(Point(40, 350), Point(50, 400)));
-    m_sample_rects.emplace_back(Rect::from_two_points(Point(40, 450), Point(250, 480)));
-
-    m_sample_rects_union = calculuate_union(m_sample_rects);
-
-    qDebug() << rounder_path(m_sample_rects_union).c_str();
+    Fitting f;
+    f.fitting_variant = Adapter{Point(100, 100), Point(200, 200), 30, 60};
+    m_model.fittings.push_back(f);
 }
 
 CanvasWidget::~CanvasWidget() = default;
@@ -319,8 +309,6 @@ void CanvasWidget::paintEvent(QPaintEvent *event) /*override*/ {
 
     render_rects(&painter, event);
     render_ducts(&painter, event);
-
-    render_rects2(&painter, event);
 
     painter.end();
 }
@@ -1104,19 +1092,45 @@ void CanvasWidget::render_ducts(QPainter *painter, QPaintEvent *) {
 }
 
 void CanvasWidget::render_duct(QPainter *painter, Duct &) {}
-void CanvasWidget::render_fitting(QPainter *painter, Fitting &) {}
 
-void CanvasWidget::render_rects2(QPainter *painter, QPaintEvent *) {
-    for (auto &r : m_sample_rects) {
-        draw_rect(painter, r, QColor(100, 100, 100));
+void CanvasWidget::render_fitting(QPainter *painter, Fitting &fitting) {
+    painter->save();
+    painter->translate(fitting.center.x, fitting.center.y);
+
+    if (auto adapter = std::get_if<Adapter>(&fitting.fitting_variant); adapter) {
+        render_fitting__adapter(painter, *adapter);
+    } else if (auto split = std::get_if<Split3>(&fitting.fitting_variant); split) {
+        render_fitting__split(painter, *split);
     }
 
-    for (size_t i = 0; i < m_sample_rects_union.size() - 1; ++i) {
-        draw_dashed_line(painter, Line(m_sample_rects_union[i], m_sample_rects_union[i + 1]), Pink,
-                         thicker_line_width());
-    }
-    draw_dashed_line(painter, Line(m_sample_rects_union.back(), m_sample_rects_union.front()), Pink,
-                     thicker_line_width());
+    painter->restore();
+}
+
+void CanvasWidget::render_fitting__adapter(QPainter *painter, Adapter &adapter) {
+    // Adapter has two known points: begin and and. These are where adapter is attached.
+
+    // Lets think:
+    // So, we know that the size of the fititng is completely fixed.
+    // So we should know points of attachments (begin,end) and two diameters (begin_d, end_d)
+    // So we have a point where center of begin starts. And we have diamter.
+    // So we can calculate two points.
+
+    v2 u{adapter.begin, adapter.end};
+    v2 perp_u = normalized(normal(u));
+
+    Point b1 = v2(adapter.begin) + perp_u * adapter.begin_d / 2.0;
+    Point b2 = v2(adapter.begin) + (-perp_u) * adapter.begin_d / 2.0;
+    Point e1 = v2(adapter.end) + perp_u * adapter.end_d / 2.0;
+    Point e2 = v2(adapter.end) + (-perp_u) * adapter.end_d / 2.0;
+
+    draw_colored_line(painter, b1, e1, Pink, thin_line_width());
+    draw_colored_line(painter, b2, e2, Pink, thin_line_width());
+    draw_colored_line(painter, b1, b2, Pink, thin_line_width());
+    draw_colored_line(painter, e1, e2, Pink, thin_line_width());
+}
+
+void CanvasWidget::render_fitting__split(QPainter *painter, Split3 &split) {
+    // ..
 }
 
 void CanvasWidget::render_lines(QPainter *painter, QPaintEvent *) {
