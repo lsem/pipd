@@ -1,0 +1,5 @@
+# pipd
+
+Simplest possible CAD for drawing ducts.
+
+![alt text](pipd.pmg "Screenshot")
