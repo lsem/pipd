@@ -1,5 +1,5 @@
 # pipd
 
-Simplest possible CAD for drawing ducts.
+Simplest possible CAD for drawing ducts (work in progress).
 
 ![alt text](https://github.com/lsem/pipd/blob/c2e0d881f804c2833f6e1c921e2ab6a838a53743/pipd.png "Screenshot")
