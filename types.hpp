@@ -35,7 +35,7 @@ enum {
 };
 }
 
-enum class Tool { hand, select, draw_point, draw_line, move, guide, rectangle, duct };
+enum class Tool { hand, select, draw_point, draw_line, move, guide, rectangle, duct, adapter };
 
 QDebug &operator<<(QDebug &os, Tool t);
 

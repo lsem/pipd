@@ -4,6 +4,7 @@
 #include "v2.hpp"
 
 #include <QDebug>
+#include <QKeyEvent>
 #include <QPaintEvent>
 #include <QPainter>
 
@@ -264,7 +265,6 @@ std::vector<Point> calculuate_union(const std::vector<Rect> &rects) {
 }
 
 CanvasWidget::CanvasWidget(QWidget *parent) : QWidget(parent), m_move_tool(*this, m_model) {
-
     Fitting f;
     f.fitting_variant = Adapter{Point(100, 100), Point(200, 200), 30, 60};
     m_model.fittings.push_back(f);
@@ -277,7 +277,8 @@ void CanvasWidget::select_tool(Tool tool) {
     m_selected_tool = tool;
 
     // By default only select tool has tracking one
-    if (m_selected_tool == Tool::select || m_selected_tool == Tool::move) {
+    if (m_selected_tool == Tool::select || m_selected_tool == Tool::move ||
+        m_selected_tool == Tool::adapter) {
         setMouseTracking(true);
     } else {
         setMouseTracking(false);
@@ -544,6 +545,17 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent *event) {
                 }
             }
         }
+        break;
+    }
+    case Tool::adapter: {
+        // So if we selected adapter then how it supposed to be handled?
+        // One approach would be to attach it to some end of a pipe.
+        // But what end of it will be attached?
+        // This is something I don't understand.
+        m_fitting_tool_state.center = mouse_world;
+        // What if we do it by selecting and of a duct and press Right mouse button which takes
+        // current point and suggests adpater to another size (Down or Up). This new size is
+        // selected somehow from PopUp menu.
         break;
     }
     default:
@@ -1084,6 +1096,23 @@ void CanvasWidget::render_ducts(QPainter *painter, QPaintEvent *) {
         // In move state, render hovers and suggestions.
         draw_colored_line(painter, Line(state.polyline.back(), state.next_end), Blue,
                           thicker_line_width());
+        // New Approach:
+        //  1) Draw a line.
+        //  2) Draw a connector.
+        //  3) Draw a second line.
+        //
+        // Do draw a split:
+        // We select a tool and draw either split from existing point.
+        // Or if we select flexible duct of certain diameter, we draw it in the same fashion.
+        //
+        // How we are supposed to handle second floor?
+        // So we can use the same tool, e.g. duct but somehow make it go up or down, similarly how
+        // we make it got left or right. Furthermore, we don't necessarry need to have it strictly
+        // 90 degrees but can use any of existing fittings and still calculate correct position on
+        // another plane. In this settings, plane would be just a slice at some particular height.
+        // So this allows us to create unusual setup lile three planes for 2 storey house. The only
+        // thing that seems  to be hard or even impossible with this approach is having split white
+        // travelling up or down.
     }
 
     for (auto &l : state.directional_lines) {
@@ -1091,7 +1120,11 @@ void CanvasWidget::render_ducts(QPainter *painter, QPaintEvent *) {
     }
 }
 
-void CanvasWidget::render_duct(QPainter *painter, Duct &) {}
+void CanvasWidget::render_duct(QPainter *painter, Duct &) {
+    // That is interesting. In current design we don't even have representation of duct.
+    // But in fact duct has its diameter.
+    // Any corner implicitly creates a fitting.
+}
 
 void CanvasWidget::render_fitting(QPainter *painter, Fitting &fitting) {
     painter->save();
@@ -1350,6 +1383,17 @@ std::optional<Point> CanvasWidget::suggest_possible_leg_placement(Point x,
 
     //    return std::nullopt;
 }
+
+class TestClass {
+  public:
+    TestClass() = default;
+
+    ~TestClass() = default;
+
+    int take_sample() { return 10; }
+
+    TestClass &operator=(const TestClass &rhs) { return *this; }
+};
 
 std::vector<Point>
 CanvasWidget::possible_points_for_next_duct_in_polyline(const std::vector<Point> &points, Point x) {

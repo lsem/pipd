@@ -71,8 +71,11 @@ class CanvasWidget : public QWidget, public IToolHost {
     void mouseMoveEvent(QMouseEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
-
     void wheelEvent(QWheelEvent *event) override;
+
+    //    bool eventFilter(QObject* object, QEvent *event) override;
+
+    
 
   public: // IToolHost
     virtual void ToolHost__update() override { update(); }
@@ -171,4 +174,9 @@ class CanvasWidget : public QWidget, public IToolHost {
 
         std::vector<Line> directional_lines;
     } m_duct_tool_state;
+
+    struct {
+        Adapter shadow_adapter;
+        Point center;
+    } m_fitting_tool_state;
 };

@@ -45,6 +45,10 @@ This is going to have impact on all drawing, including edits one wants to make l
 It seems like we need a whole new set of instruments.
 The main challange is how to how draw pipes. Pipes are like polylines which are rendered with body.
 
+# Adapter Tool
+
+Adapter tool in its basic form aimed to connect to connect two ducts.
+In non-basic form it allows to split part of a network so that after adapter everything changes its base diameter.
 
 
 

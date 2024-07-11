@@ -26,6 +26,9 @@ QDebug &operator<<(QDebug &os, Tool t) {
     case Tool::duct:
         os << "duct";
         break;
+    case Tool::adapter:
+        os << "adapter";
+        break;
     default:
         os << "<tool:unknown>";
         break;

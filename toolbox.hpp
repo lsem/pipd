@@ -33,7 +33,8 @@ class ToolBox : public QWidget {
     QToolButton *m_move_tool;
     QToolButton *m_guide_tool;
     QToolButton *m_rectangle_tool;
-    QToolButton *m_duct_tool;    
+    QToolButton *m_duct_tool;
+    QToolButton *m_adapter_tool;        
     Tool m_selected_tool = Tool::hand;
     std::vector<QToolButton *> m_tools;
     QPoint m_offset;
